@@ -125,8 +125,8 @@ State: `totalDistM`, `totalSteps`, `lastRawDist`, `lastRawSteps` (initially null
   first packet after recovery.
 - Smoothed distance: between packets `displayDistM += speedMps × dt`, capped at
   `totalDistM + 10`; on each packet `displayDistM = max(displayDistM, totalDistM)`.
-  Never decreases. Display and the FIT record use `displayDistM`; FIT session totals
-  use `totalDistM`.
+  Never decreases. The screen uses `displayDistM`; FIT session totals use
+  `totalDistM`.
 - Speed = `speedTenths / 10` km/h, stored as m/s; forced to 0 when state ≠ 1.
 - No valid packet for > 5 s: speed is shown as `--`; totals freeze.
 
@@ -148,11 +148,13 @@ State: `totalDistM`, `totalSteps`, `lastRawDist`, `lastRawSteps` (initially null
 
 | Field | Message | Content |
 |---|---|---|
-| `treadmill_speed` | RECORD | belt speed in the device units captured at field start |
+| `treadmill_speed` | RECORD | belt speed, km/h |
 | `treadmill_distance` | SESSION | accumulated treadmill distance |
 | `treadmill_steps` | SESSION | accumulated treadmill steps |
 
 Labels/units declared in `fitContributions` resources so Garmin Connect shows them.
+FIT values are always metric (km/h, km): Connect IQ FIT unit labels are static
+resources and cannot follow the device unit setting. The screen follows device units.
 
 ## Error handling summary
 
