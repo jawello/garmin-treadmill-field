@@ -1,0 +1,9 @@
+<fitContributions>
+    <fitField id="0" displayInChart="true" displayInActivityLaps="false" displayInActivitySummary="false"
+        sortOrder="0" precision="1" chartTitle="@Strings.FitSpeedLabel" dataLabel="@Strings.FitSpeedLabel"
+        unitLabel="@Strings.FitSpeedUnits" fillColor="#000000"/>
+    <fitField id="1" displayInChart="false" displayInActivityLaps="false" displayInActivitySummary="true"
+        sortOrder="1" precision="2" dataLabel="@Strings.FitDistLabel" unitLabel="@Strings.FitDistUnits"/>
+    <fitField id="2" displayInChart="false" displayInActivityLaps="false" displayInActivitySummary="true"
+        sortOrder="2" precision="0" dataLabel="@Strings.FitStepsLabel" unitLabel="@Strings.FitStepsUnits"/>
+</fitContributions>

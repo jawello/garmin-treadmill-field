@@ -1,3 +1,14 @@
 <strings>
     <string id="AppName">Treadmill</string>
+    <string id="StatusSearching">Searching...</string>
+    <string id="StatusConnected">Connected</string>
+    <string id="StatusError">Link error</string>
+    <string id="StepsLabel">steps</string>
+    <string id="ControlBeltTitle">Start/stop the belt with the activity timer</string>
+    <string id="FitSpeedLabel">Treadmill speed</string>
+    <string id="FitSpeedUnits">km/h</string>
+    <string id="FitDistLabel">Treadmill distance</string>
+    <string id="FitDistUnits">km</string>
+    <string id="FitStepsLabel">Treadmill steps</string>
+    <string id="FitStepsUnits">steps</string>
 </strings>

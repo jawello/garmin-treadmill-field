@@ -1,0 +1,5 @@
+<settings>
+    <setting propertyKey="@Properties.controlBelt" title="@Strings.ControlBeltTitle">
+        <settingConfig type="boolean"/>
+    </setting>
+</settings>
