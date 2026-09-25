@@ -14,7 +14,9 @@ debug:
 
 test:
 	mkdir -p bin && $(MONKEYC) -t -o bin/test.prg
-	$(SDK_BIN)/monkeydo bin/test.prg $(DEVICE) -t
+	$(SDK_BIN)/monkeydo bin/test.prg $(DEVICE) -t > bin/test.log 2>&1 || true
+	sed -n '/^RESULTS/,$$p' bin/test.log
+	grep -q '^PASSED' bin/test.log
 
 sim:
 	$(SDK_BIN)/connectiq &
