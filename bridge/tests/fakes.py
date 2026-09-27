@@ -48,3 +48,64 @@ class FakeWatch:
         chars = await peer.discover_characteristics(service=service)
         target = next(c for c in chars if c.uuid == UUID(char_uuid))
         await target.write_value(value, with_response=False)
+
+
+import struct
+
+from bumble.core import AdvertisingData
+from bumble.gatt import Characteristic, CharacteristicValue, Service
+
+from treadmill_bridge import protocol as p
+
+
+class FakeTreadmill:
+    """FE00 server that behaves like the R1 Pro: answers queries, obeys start/stop."""
+
+    def __init__(self, device: Device) -> None:
+        self.device = device
+        self.writes: list[bytes] = []
+        self.running = True
+        self.steps = 0
+        self.notify = Characteristic(
+            p.NOTIFY_UUID,
+            Characteristic.Properties.READ | Characteristic.Properties.NOTIFY,
+            Characteristic.READABLE,
+            bytes(20),
+        )
+        self.write = Characteristic(
+            p.WRITE_UUID,
+            Characteristic.Properties.WRITE_WITHOUT_RESPONSE | Characteristic.Properties.WRITE,
+            Characteristic.WRITEABLE,
+            CharacteristicValue(write=self._on_write),
+        )
+
+    def install(self) -> None:
+        self.device.add_service(Service(p.SERVICE_UUID, [self.notify, self.write]))
+
+    async def start(self) -> None:
+        await self.device.power_on()
+        await self.device.start_advertising(
+            own_address_type=OwnAddressType.RANDOM,
+            advertising_data=bytes(
+                AdvertisingData(
+                    [(AdvertisingData.COMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS, struct.pack("<H", 0xFE00))]
+                )
+            ),
+            auto_restart=True,
+        )
+
+    async def drop(self) -> None:
+        for connection in list(self.device.connections.values()):
+            await connection.disconnect()
+
+    def _on_write(self, connection, value) -> None:
+        data = bytes(value)
+        self.writes.append(data)
+        if data == p.START:
+            self.running = True
+        elif data == p.STOP:
+            self.running = False
+        if self.running:
+            self.steps += 2
+        packet = p.build_status(1 if self.running else 0, 45 if self.running else 0, 0, self.steps // 10, self.steps)
+        asyncio.ensure_future(self.device.notify_subscriber(connection, self.notify, packet))
