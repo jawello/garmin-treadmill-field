@@ -1,0 +1,30 @@
+[project]
+name = "treadmill-bridge"
+version = "0.1.0"
+description = "Kingsmith R1 Pro to Garmin bridge (foot pod, FE00 relay, step buckets)"
+requires-python = ">=3.13"
+dependencies = [
+    "bumble==0.0.235",
+    "aiohttp>=3.10",
+]
+
+[project.scripts]
+treadmill-bridge = "treadmill_bridge.main:cli"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/treadmill_bridge"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]

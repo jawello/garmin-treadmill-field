@@ -1,0 +1,17 @@
+name: bridge
+on:
+  push:
+    paths: ["bridge/**", ".github/workflows/bridge.yml"]
+  pull_request:
+    paths: ["bridge/**", ".github/workflows/bridge.yml"]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run pytest -q
