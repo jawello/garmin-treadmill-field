@@ -120,7 +120,11 @@ class FootPod:
         enable_just_works(self._device)
 
     async def start(self) -> None:
-        if self.advertising:
+        # Called every tick while the treadmill link is up. Advertise only when no watch is
+        # connected and nothing is on air; no auto_restart, so stop() is final (Bumble's
+        # auto_restart re-enables a stopped legacy advertiser when the watch disconnects).
+        self.advertising = True
+        if peripheral_connections(self._device) or self._device.is_advertising:
             return
         await self._device.start_advertising(
             own_address_type=self._own_address_type,
@@ -136,16 +140,16 @@ class FootPod:
             ),
             advertising_interval_min=100.0,
             advertising_interval_max=100.0,
-            auto_restart=True,
+            auto_restart=False,
         )
-        self.advertising = True
         log.info("foot pod advertising")
 
     async def stop(self) -> None:
         if self.advertising:
+            log.info("foot pod going off air")
+        self.advertising = False
+        if self._device.is_advertising:
             await self._device.stop_advertising()
-            self.advertising = False
-            log.info("foot pod stopped advertising")
         for connection in peripheral_connections(self._device):
             await connection.disconnect()
 

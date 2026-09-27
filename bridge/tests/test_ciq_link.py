@@ -64,3 +64,16 @@ async def test_stop_disconnects_watch(link):
     await ciq.stop()
     await asyncio.sleep(0.1)
     assert not ciq.advertising and not ciq._device.connections
+
+
+async def test_stop_with_watch_connected_stays_off_air_on_legacy_controller(link, monkeypatch):
+    from bumble.device import Device
+
+    monkeypatch.setattr(Device, "supports_le_extended_advertising", property(lambda self: False))
+    from tests.test_footpod import _adverts_seen
+
+    _, _, _, _, _, _, ciq = await setup(link)
+    await ciq.stop()
+    await asyncio.sleep(0.2)
+    assert not ciq._device.connections
+    assert await _adverts_seen(link, ciq._device.random_address) == 0
