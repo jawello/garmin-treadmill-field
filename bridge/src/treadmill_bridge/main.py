@@ -30,6 +30,23 @@ async def open_device(index: int, name: str, keystore: str) -> tuple[Device, obj
     return device, transport
 
 
+async def open_optional_radio(opener, index: int, name: str, keystore: str):
+    """Open and power on radio B; a broken adapter must not take radio A down with it."""
+    transport = None
+    try:
+        device, transport = await opener(index, name, keystore)
+        await device.power_on()
+        return device, transport
+    except Exception as error:
+        log.error("USB Bluetooth adapter hci%d unusable, running without the field bridge: %s", index, error)
+        if transport is not None:
+            try:
+                await transport.close()
+            except Exception:
+                pass
+        return None, None
+
+
 async def serve(config_path: str) -> None:
     config = load_config(config_path)
     logging.basicConfig(level=config.log_level, format="%(levelname)s %(name)s: %(message)s")
@@ -42,7 +59,7 @@ async def serve(config_path: str) -> None:
     dev_a, transport_a = await open_device(radios["uart"], "treadmill-bridge-a", keystore)
     dev_b = transport_b = None
     if "usb" in radios:
-        dev_b, transport_b = await open_device(radios["usb"], "treadmill-bridge-b", keystore)
+        dev_b, transport_b = await open_optional_radio(open_device, radios["usb"], "treadmill-bridge-b", keystore)
     else:
         log.warning("no USB Bluetooth adapter: running without the field bridge")
     store = Store(os.path.join(config.state_dir, "bridge.db"))
@@ -52,8 +69,6 @@ async def serve(config_path: str) -> None:
         time_synced=lambda: os.path.exists(TIME_SYNCED_FLAG),
     )
     await dev_a.power_on()
-    if dev_b is not None:
-        await dev_b.power_on()
     log.info("radio A %s, radio B %s", dev_a.public_address, dev_b.public_address if dev_b else "absent")
     runner = web.AppRunner(make_app(store, lambda: status_snapshot(components), config.api_token))
     await runner.setup()
