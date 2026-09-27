@@ -30,15 +30,19 @@ What was verified:
   enables notifications. The data field code works.
 - `CONNECTION_STRATEGY_SECURE_PAIR_BOND` behaves the same as the default.
 
-Most likely cause: `pairDevice()` on this watch starts SMP pairing, which this
-treadmill module refuses. The watch-side pairing request is inferred, not sniffed.
-Connect IQ has no way to connect without `pairDevice`, so this cannot be fixed in
-the field. Possible ways forward: a phone app that proxies between the treadmill
-(no pairing) and the watch (bonded phone), or a watch/treadmill firmware that
-behaves differently.
+Cause (found 2026-09-27 with btmon on a Raspberry Pi): the watch connects with a
+7.5 ms connection interval and a 4 s supervision timeout; the treadmill's Telink
+module cannot keep up, so the link dies after exactly 4 s. The earlier "pairing"
+theory was wrong — the watch's Connect IQ link to the Pi stayed unpaired. Connect IQ
+cannot change connection parameters, so the field cannot fix this itself. A phone
+proxy does not work either: the watch treats the phone's adverts as the
+already-connected phone.
 
 Diagnostics: create an empty `GARMIN/APPS/LOGS/TreadmillField.TXT` on the watch;
 the link logs every state change and the reason for each error there.
+
+**Workaround:** the [bridge](../bridge/README.md) on a Raspberry Pi holds the treadmill
+link and re-publishes FE00 for this field (and a foot pod for native Garmin fields).
 
 ## Build
 

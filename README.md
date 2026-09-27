@@ -9,4 +9,7 @@ with minimal manual steps.
 | [`bridge/`](bridge/README.md) | Raspberry Pi daemon: owns the treadmill link, acts as a Garmin foot pod, bridges FE00 for the field, records minute step buckets, HTTP API |
 | `android/` | planned: syncs step buckets from the bridge into Health Connect |
 
+Status: the watch field is done; the bridge runs on the Pi with radio A (treadmill +
+foot pod); the field bridge waits for the USB adapter; the Android companion is next.
+
 Design documents: [`docs/superpowers/specs/`](docs/superpowers/specs/).
