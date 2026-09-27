@@ -5,7 +5,7 @@ import Toybox.Test;
 function beltStartsWhenEnabledConnectedStopped(logger as Logger) as Boolean {
     var link = new FakeLink();
     var belt = new BeltController(link);
-    belt.onRun(true, LinkState.CONNECTED, 0);
+    belt.onRun(true, LinkState.CONNECTED, 0, 0);
     Test.assertEqual(link.starts, 1);
     return true;
 }
@@ -14,7 +14,7 @@ function beltStartsWhenEnabledConnectedStopped(logger as Logger) as Boolean {
 function beltNoStartWhenDisabled(logger as Logger) as Boolean {
     var link = new FakeLink();
     var belt = new BeltController(link);
-    belt.onRun(false, LinkState.CONNECTED, 0);
+    belt.onRun(false, LinkState.CONNECTED, 0, 0);
     Test.assertEqual(link.starts, 0);
     return true;
 }
@@ -23,8 +23,8 @@ function beltNoStartWhenDisabled(logger as Logger) as Boolean {
 function beltNoStartWhenNotConnectedAndNoLateStart(logger as Logger) as Boolean {
     var link = new FakeLink();
     var belt = new BeltController(link);
-    belt.onRun(true, LinkState.SEARCHING, null);
-    belt.onRun(true, LinkState.ERROR, 0);
+    belt.onRun(true, LinkState.SEARCHING, null, 0);
+    belt.onRun(true, LinkState.ERROR, 0, 0);
     belt.tick(LinkState.CONNECTED, 0, 10000);
     belt.tick(LinkState.CONNECTED, 0, 20000);
     Test.assertEqual(link.starts, 0);
@@ -35,10 +35,10 @@ function beltNoStartWhenNotConnectedAndNoLateStart(logger as Logger) as Boolean 
 function beltNoStartWhenRunningOrUnknown(logger as Logger) as Boolean {
     var link = new FakeLink();
     var belt = new BeltController(link);
-    belt.onRun(true, LinkState.CONNECTED, 1);
-    belt.onRun(true, LinkState.CONNECTED, 3);
-    belt.onRun(true, LinkState.CONNECTED, 8);
-    belt.onRun(true, LinkState.CONNECTED, null);
+    belt.onRun(true, LinkState.CONNECTED, 1, 0);
+    belt.onRun(true, LinkState.CONNECTED, 3, 1000);
+    belt.onRun(true, LinkState.CONNECTED, 8, 0);
+    belt.onRun(true, LinkState.CONNECTED, null, 0);
     Test.assertEqual(link.starts, 0);
     return true;
 }
@@ -105,9 +105,30 @@ function beltResumeCancelsPendingRetry(logger as Logger) as Boolean {
     var link = new FakeLink();
     var belt = new BeltController(link);
     belt.onHalt(true, LinkState.CONNECTED, 1, 0);
-    belt.onRun(true, LinkState.CONNECTED, 3);
+    belt.onRun(true, LinkState.CONNECTED, 3, 1000);
     belt.tick(LinkState.CONNECTED, 1, 3000);
     Test.assertEqual(link.stops, 1);
     Test.assertEqual(link.starts, 0);
+    return true;
+}
+
+(:test)
+function beltStopsRightAfterStartBeforeStatusArrives(logger as Logger) as Boolean {
+    var link = new FakeLink();
+    var belt = new BeltController(link);
+    belt.onRun(true, LinkState.CONNECTED, 0, 0);
+    belt.onHalt(true, LinkState.CONNECTED, 0, 500);
+    Test.assertEqual(link.starts, 1);
+    Test.assertEqual(link.stops, 1);
+    return true;
+}
+
+(:test)
+function beltNoStopLongAfterStartWhenStopped(logger as Logger) as Boolean {
+    var link = new FakeLink();
+    var belt = new BeltController(link);
+    belt.onRun(true, LinkState.CONNECTED, 0, 0);
+    belt.onHalt(true, LinkState.CONNECTED, 0, 10000);
+    Test.assertEqual(link.stops, 0);
     return true;
 }

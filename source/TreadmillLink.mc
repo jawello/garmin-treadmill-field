@@ -59,7 +59,10 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
         if (!_ready) {
             return;
         }
-        _pending.add(WalkingPadProtocol.startCommand());
+        // Belt commands go ahead of a queued status query.
+        var queue = [WalkingPadProtocol.startCommand()] as Array<ByteArray>;
+        queue.addAll(_pending);
+        _pending = queue;
         flush(System.getTimer());
     }
 
@@ -122,6 +125,10 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
                 try {
                     log("pair rssi=" + result.getRssi());
                     _device = BluetoothLowEnergy.pairDevice(result);
+                    if (_device == null) {
+                        enterError(System.getTimer(), "pairDevice returned null");
+                        return;
+                    }
                     _phaseStartMs = System.getTimer();
                 } catch (e) {
                     enterError(System.getTimer(), "pair exception");
@@ -175,6 +182,7 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
     function onCharacteristicWrite(characteristic as BluetoothLowEnergy.Characteristic,
             status as BluetoothLowEnergy.Status) as Void {
         _busySinceMs = null;
+        flush(System.getTimer());
     }
 
     function onCharacteristicChanged(characteristic as BluetoothLowEnergy.Characteristic,

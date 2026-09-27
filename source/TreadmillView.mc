@@ -61,6 +61,10 @@ class TreadmillView extends WatchUi.DataField {
 
     function compute(info as Activity.Info) as Numeric or Time.Duration or String or Null {
         var now = System.getTimer();
+        // A field added mid-workout never saw onTimerStart; the belt stays event-driven.
+        if (info has :timerState && info.timerState != null) {
+            _acc.setTimerRunning(info.timerState == Activity.TIMER_STATE_ON);
+        }
         _link.tick(now);
         _acc.tick(now);
         var linkState = _link.getState() as Number;
@@ -138,7 +142,7 @@ class TreadmillView extends WatchUi.DataField {
     hidden function handleRun() as Void {
         var now = System.getTimer();
         _acc.setTimerRunning(true);
-        _belt.onRun(controlBelt(), _link.getState() as Number, _acc.getBeltState(now));
+        _belt.onRun(controlBelt(), _link.getState() as Number, _acc.getBeltState(now), now);
     }
 
     hidden function handleHalt() as Void {
