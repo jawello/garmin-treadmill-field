@@ -89,3 +89,28 @@ async def test_reconnects_after_drop(link):
         await wait_for(lambda: changes[:2] == [False, True])
     finally:
         task.cancel()
+
+
+async def test_stale_start_is_never_sent_after_reconnect(link):
+    # The field can queue START while the treadmill link is down (watch resumed during the
+    # 30 s grace); that START must not start the belt minutes later when the link returns.
+    tm = FakeTreadmill(virtual_device(link, "treadmill"))
+    tm.install()
+    await tm.device.power_on()  # powered but not advertising yet: unreachable
+    radio = virtual_device(link, "bridge-a")
+    await radio.power_on()
+    hub = StatusHub()
+    client = TreadmillClient(
+        radio, hub, str(tm.device.random_address), OwnAddressType.RANDOM,
+        command_ttl=0.2, **{**FAST, "connect_timeout": 0.2},
+    )
+    task = asyncio.create_task(client.run())
+    try:
+        client.send_command(p.START)
+        await asyncio.sleep(0.5)
+        await tm.start()
+        await wait_for(lambda: hub.link_up)
+        await wait_for(lambda: tm.writes.count(p.QUERY) >= 3)
+        assert p.START not in tm.writes
+    finally:
+        task.cancel()

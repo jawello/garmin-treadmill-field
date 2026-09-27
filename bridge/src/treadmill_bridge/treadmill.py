@@ -52,6 +52,7 @@ class TreadmillClient:
         backoff: tuple[float, ...] = (1.0, 2.0, 5.0, 10.0),
         scan_timeout: float = 10.0,
         connect_timeout: float = 10.0,
+        command_ttl: float = 5.0,
     ) -> None:
         self._device = device
         self._hub = hub
@@ -65,14 +66,16 @@ class TreadmillClient:
         self._backoff = backoff
         self._scan_timeout = scan_timeout
         self._connect_timeout = connect_timeout
-        self._pending: list[bytes] = []
+        self._command_ttl = command_ttl
+        self._pending: list[tuple[bytes, float]] = []  # (command, queued at)
         self._attempt = 0
 
     def send_command(self, command: bytes) -> None:
+        now = self._clock()
         if command == STOP:
-            self._pending = [STOP]
+            self._pending = [(STOP, now)]
         elif command == START:
-            self._pending = [c for c in self._pending if c != START] + [START]
+            self._pending = [(c, t) for c, t in self._pending if c != START] + [(START, now)]
         else:
             raise ValueError(f"not a belt command: {command.hex()}")
 
@@ -119,7 +122,7 @@ class TreadmillClient:
 
             await peer.subscribe(notify, on_notify)
             while not lost.is_set():
-                command = self._pending.pop(0) if self._pending else QUERY
+                command = self._next_command()
                 await write.write_value(command, with_response=False)
                 if command == START:
                     self._hub.note_start()
@@ -133,6 +136,17 @@ class TreadmillClient:
             if not lost.is_set():
                 with contextlib.suppress(Exception):
                     await connection.disconnect()
+
+    def _next_command(self) -> bytes:
+        # A belt command that waited longer than command_ttl (link down, reconnecting) is
+        # dropped: a late START could start the belt with nobody on it.
+        now = self._clock()
+        while self._pending:
+            command, queued_at = self._pending.pop(0)
+            if now - queued_at <= self._command_ttl:
+                return command
+            log.warning("dropped stale %s command", "start" if command == START else "stop")
+        return QUERY
 
     async def _resolve_address(self) -> Address:
         if self._address:
