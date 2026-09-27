@@ -178,7 +178,7 @@ LAN only, port 8080, `Authorization: Bearer <token>` from the config; JSON.
 | Request | Response |
 |---|---|
 | `GET /api/v1/status` | link states (treadmill, foot pod, field), latest status (belt state, speed, counters), radio B presence, uptime |
-| `GET /api/v1/steps?since=<unix>&until=<unix>` | closed minute buckets: `start`, `end`, `steps`, `distance_m`, `version` |
+| `GET /api/v1/steps?since=<unix>&until=<unix>` | final minute buckets (served 11 s after the minute ends, never changed afterwards): `start`, `end`, `steps`, `distance_m`, `active_seconds`, `version` (integer, ms) |
 | `GET /api/v1/sessions?since=<unix>` | sessions: `start`, `end`, `steps`, `distance_m` |
 
 Idempotent sync contract: the companion writes each bucket to Health Connect with
