@@ -1,0 +1,18 @@
+[Unit]
+Description=Kingsmith R1 Pro to Garmin bridge
+After=network-online.target time-sync.target
+Wants=network-online.target
+
+[Service]
+User=treadmill
+Group=treadmill
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+ExecStartPre=+/opt/treadmill-bridge/bridge/deploy/prepare-radios.sh
+ExecStart=/opt/treadmill-bridge/bridge/.venv/bin/treadmill-bridge --config /etc/treadmill-bridge/config.toml
+Restart=always
+RestartSec=5
+StateDirectory=treadmill-bridge
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+# /etc/treadmill-bridge/config.toml
+api_token = "CHANGE_ME"
+# treadmill_address = "57:4C:4D:2F:0C:93/P"   # discovered and remembered automatically
+api_port = 8080
+hold_speed_during_start = false
+log_level = "INFO"

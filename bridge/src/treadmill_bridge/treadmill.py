@@ -83,7 +83,7 @@ class TreadmillClient:
             except asyncio.CancelledError:
                 raise
             except Exception as error:  # every failure ends in a reconnect
-                log.warning("treadmill link lost: %s", error)
+                log.warning("treadmill link lost: %s", str(error) or type(error).__name__)
             self._hub.set_link(False)
             delay = self._backoff[min(self._attempt, len(self._backoff) - 1)]
             self._attempt += 1
