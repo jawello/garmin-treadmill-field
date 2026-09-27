@@ -1,7 +1,8 @@
 # Treadmill Data Field for Garmin Instinct 3 — Design
 
 Date: 2026-09-25
-Status: approved in brainstorming, pending written-spec review
+Status: implemented; blocked on hardware — the R1 Pro "RE" module rejects BLE pairing
+and the watch cannot hold a link to it (see README, "Known issue")
 
 ## Goal
 

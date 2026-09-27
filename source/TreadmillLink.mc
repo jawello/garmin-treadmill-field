@@ -46,6 +46,7 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
             });
         } catch (e) {
             // Registered by an earlier instance of the field in this session.
+            log("profile register threw: " + e.getErrorMessage());
             startScan();
         }
     }
@@ -83,13 +84,13 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
         }
         if (!_ready) {
             if (_phaseStartMs != null && nowMs - _phaseStartMs > CONNECT_TIMEOUT_MS) {
-                enterError(nowMs);
+                enterError(nowMs, "connect timeout");
             }
             return;
         }
         var lastData = _lastPacketMs != null ? _lastPacketMs : _phaseStartMs;
         if (lastData != null && nowMs - lastData > NO_DATA_TIMEOUT_MS) {
-            enterError(nowMs);
+            enterError(nowMs, "no data");
             return;
         }
         if (_busySinceMs != null && nowMs - _busySinceMs >= BUSY_TIMEOUT_MS) {
@@ -102,10 +103,11 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
     }
 
     function onProfileRegister(uuid as BluetoothLowEnergy.Uuid, status as BluetoothLowEnergy.Status) as Void {
+        log("profile status " + status);
         if (status == BluetoothLowEnergy.STATUS_SUCCESS) {
             startScan();
         } else {
-            enterError(System.getTimer());
+            enterError(System.getTimer(), "profile register failed");
         }
     }
 
@@ -118,10 +120,11 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
             if (advertisesTreadmill(result)) {
                 BluetoothLowEnergy.setScanState(BluetoothLowEnergy.SCAN_STATE_OFF);
                 try {
+                    log("pair rssi=" + result.getRssi());
                     _device = BluetoothLowEnergy.pairDevice(result);
                     _phaseStartMs = System.getTimer();
                 } catch (e) {
-                    enterError(System.getTimer());
+                    enterError(System.getTimer(), "pair exception");
                 }
                 return;
             }
@@ -131,20 +134,21 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
     function onConnectedStateChanged(device as BluetoothLowEnergy.Device,
             state as BluetoothLowEnergy.ConnectionState) as Void {
         var now = System.getTimer();
+        log("connection state " + state);
         if (state != BluetoothLowEnergy.CONNECTION_STATE_CONNECTED) {
-            enterError(now);
+            enterError(now, "disconnected state=" + state);
             return;
         }
         var service = device.getService(_serviceUuid);
         if (service == null) {
-            enterError(now);
+            enterError(now, "no FE00 service");
             return;
         }
         var notifyChar = service.getCharacteristic(_notifyUuid);
         _writeChar = service.getCharacteristic(_writeUuid);
         var cccd = notifyChar != null ? notifyChar.getDescriptor(BluetoothLowEnergy.cccdUuid()) : null;
         if (cccd == null || _writeChar == null) {
-            enterError(now);
+            enterError(now, "no FE01 CCCD or FE02");
             return;
         }
         _phaseStartMs = now;
@@ -152,7 +156,7 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
             cccd.requestWrite([0x01, 0x00]b);
             _busySinceMs = now;
         } catch (e) {
-            enterError(now);
+            enterError(now, "CCCD write exception");
         }
     }
 
@@ -161,9 +165,10 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
         _busySinceMs = null;
         if (status == BluetoothLowEnergy.STATUS_SUCCESS) {
             _ready = true;
+            log("notifications on");
             _phaseStartMs = System.getTimer();
         } else {
-            enterError(System.getTimer());
+            enterError(System.getTimer(), "CCCD write status=" + status);
         }
     }
 
@@ -181,6 +186,9 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
         if (status == null) {
             return;
         }
+        if (_state != LinkState.CONNECTED) {
+            log("first packet");
+        }
         _state = LinkState.CONNECTED;
         _lastPacketMs = System.getTimer();
         _onStatus.invoke(status);
@@ -196,7 +204,7 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
             _writeChar.requestWrite(bytes, _writeOptions);
             _busySinceMs = nowMs;
         } catch (e) {
-            enterError(nowMs);
+            enterError(nowMs, "write exception");
         }
     }
 
@@ -211,6 +219,7 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
     }
 
     hidden function startScan() as Void {
+        log("scan");
         _state = LinkState.SEARCHING;
         _device = null;
         _writeChar = null;
@@ -223,10 +232,11 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
     }
 
     // Idempotent: unpairing below triggers a disconnect callback that lands here again.
-    hidden function enterError(nowMs as Number) as Void {
+    hidden function enterError(nowMs as Number, reason as String) as Void {
         if (_state == LinkState.ERROR) {
             return;
         }
+        log("error: " + reason);
         _state = LinkState.ERROR;
         _errorSinceMs = nowMs;
         _ready = false;
@@ -243,5 +253,10 @@ class TreadmillLink extends BluetoothLowEnergy.BleDelegate {
                 // Already gone; nothing else to release.
             }
         }
+    }
+
+    // Printed to GARMIN/APPS/LOGS/<app>.TXT on the watch when that file exists.
+    hidden function log(message as String) as Void {
+        System.println(System.getTimer().toString() + " link: " + message);
     }
 }
