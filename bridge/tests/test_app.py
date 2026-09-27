@@ -70,3 +70,17 @@ async def test_runs_without_radio_b(link, tmp_path):
         assert status_snapshot(c)["field_bridge"] == {"present": False, "advertising": False}
     finally:
         task.cancel()
+
+
+async def test_storage_failure_does_not_stop_the_daemon(link, tmp_path):
+    _, c, task = await start_system(link, tmp_path, with_b=False)
+    try:
+        def broken_flush(_now):
+            raise OSError("disk I/O error")
+
+        c.recorder.flush = broken_flush
+        await asyncio.sleep(0.6)  # several flush intervals (FAST.flush_s = 0.2)
+        assert not task.done()
+        assert c.hub.link_up and c.footpod.advertising
+    finally:
+        task.cancel()

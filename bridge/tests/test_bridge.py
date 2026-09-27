@@ -97,3 +97,27 @@ async def test_grace_then_stop_only_watch_links(link):
         assert len(roles) == 1  # watch dropped, treadmill link kept
     finally:
         task.cancel()
+
+
+class BrokenPeripheral(FakePeripheral):
+    async def start(self):
+        raise RuntimeError("HCI command disallowed")
+
+    async def stop(self):
+        raise RuntimeError("unknown connection identifier")
+
+    async def tick(self, now):
+        raise RuntimeError("notify failed")
+
+
+async def test_one_failing_component_does_not_break_the_tick():
+    clock = Clock()
+    hub = StatusHub(clock)
+    pod, ciq = BrokenPeripheral(), FakePeripheral()
+    bridge = Bridge(hub, pod, ciq, clock=clock, grace_s=0.0)
+    hub.set_link(True)
+    await bridge.tick()  # must not raise
+    assert ciq.advertising
+    hub.set_link(False)
+    await bridge.tick()  # footpod.stop raises: ciq.stop must still run
+    assert not ciq.advertising

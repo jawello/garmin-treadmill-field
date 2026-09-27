@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 from .hub import StatusHub
+
+log = logging.getLogger(__name__)
 
 
 class Bridge:
@@ -19,11 +22,20 @@ class Bridge:
     async def tick(self) -> None:
         now = self._clock()
         if self._hub.link_up:
-            await self._footpod.start()
+            await self._guard("foot pod start", self._footpod.start())
             if self._ciq is not None:
-                await self._ciq.start()
+                await self._guard("field bridge start", self._ciq.start())
         elif now - self._hub.link_changed_at >= self._grace_s:
-            await self._footpod.stop()
+            await self._guard("foot pod stop", self._footpod.stop())
             if self._ciq is not None:
-                await self._ciq.stop()
-        await self._footpod.tick(now)
+                await self._guard("field bridge stop", self._ciq.stop())
+        await self._guard("foot pod notify", self._footpod.tick(now))
+
+    @staticmethod
+    async def _guard(what: str, action: Awaitable[None]) -> None:
+        # One failing component (an HCI race, a rejected command) must not take the
+        # daemon down; the next tick simply tries again.
+        try:
+            await action
+        except Exception as error:
+            log.warning("%s failed: %s", what, str(error) or type(error).__name__)

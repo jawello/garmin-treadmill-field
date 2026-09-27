@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ from .sessions import SessionRecorder
 from .storage import Store
 from .treadmill import TreadmillClient
 
+log = logging.getLogger(__name__)
 RETENTION_S = 90 * 86400
 STARTED = time.monotonic()
 
@@ -55,8 +57,11 @@ class Components:
             while True:
                 await self.bridge.tick()
                 if time.monotonic() - last_flush >= self.timings.flush_s:
-                    self.recorder.flush(time.time())
-                    self.store.purge(int(time.time()) - RETENTION_S)
+                    try:
+                        self.recorder.flush(time.time())
+                        self.store.purge(int(time.time()) - RETENTION_S)
+                    except Exception:
+                        log.exception("saving steps failed")
                     last_flush = time.monotonic()
                 await asyncio.sleep(self.timings.tick_s)
 
