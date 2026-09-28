@@ -30,13 +30,18 @@ What was verified:
   enables notifications. The data field code works.
 - `CONNECTION_STRATEGY_SECURE_PAIR_BOND` behaves the same as the default.
 
-Cause (found 2026-09-27 with btmon on a Raspberry Pi): the watch connects with a
-7.5 ms connection interval and a 4 s supervision timeout; the treadmill's Telink
-module cannot keep up, so the link dies after exactly 4 s. The earlier "pairing"
-theory was wrong — the watch's Connect IQ link to the Pi stayed unpaired. Connect IQ
-cannot change connection parameters, so the field cannot fix this itself. A phone
-proxy does not work either: the watch treats the phone's adverts as the
-already-connected phone.
+Cause: still unknown. What is known (btmon on a Raspberry Pi, 2026-09-27/28):
+
+- The watch's Connect IQ link uses a 7.5 ms interval and a 4 s supervision timeout,
+  and does not start SMP pairing (the link to the Pi stayed unpaired).
+- The treadmill itself copes with a 7.5 ms interval, data length extension, a
+  2M PHY request (it stays on 1M), and accepted, rejected or ignored parameter
+  updates when a Raspberry Pi (Bumble) is the central; ~1 s after connecting it
+  asks for 7.5–12.5 ms / 5 s via L2CAP. So the interval alone is not the cause —
+  the watch must do something else that only a sniffer trace would show.
+- Connect IQ cannot change any of this, so the field cannot fix it itself. A phone
+  proxy does not work either: the watch treats the phone's adverts as the
+  already-connected phone.
 
 Diagnostics: create an empty `GARMIN/APPS/LOGS/TreadmillField.TXT` on the watch;
 the link logs every state change and the reason for each error there.
