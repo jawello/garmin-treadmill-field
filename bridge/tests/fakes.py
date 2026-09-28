@@ -58,6 +58,11 @@ from bumble.gatt import Characteristic, CharacteristicValue, Service
 from treadmill_bridge import protocol as p
 
 
+# The R1 Pro declares its service and characteristics with 16-bit UUIDs; a GATT
+# "find by type value" only matches the same wire form, so the fake must too.
+TREADMILL_SERVICE, TREADMILL_NOTIFY, TREADMILL_WRITE = "FE00", "FE01", "FE02"
+
+
 class FakeTreadmill:
     """FE00 server that behaves like the R1 Pro: answers queries, obeys start/stop."""
 
@@ -67,20 +72,20 @@ class FakeTreadmill:
         self.running = True
         self.steps = 0
         self.notify = Characteristic(
-            p.NOTIFY_UUID,
+            TREADMILL_NOTIFY,
             Characteristic.Properties.READ | Characteristic.Properties.NOTIFY,
             Characteristic.READABLE,
             bytes(20),
         )
         self.write = Characteristic(
-            p.WRITE_UUID,
+            TREADMILL_WRITE,
             Characteristic.Properties.WRITE_WITHOUT_RESPONSE | Characteristic.Properties.WRITE,
             Characteristic.WRITEABLE,
             CharacteristicValue(write=self._on_write),
         )
 
     def install(self) -> None:
-        self.device.add_service(Service(p.SERVICE_UUID, [self.notify, self.write]))
+        self.device.add_service(Service(TREADMILL_SERVICE, [self.notify, self.write]))
 
     async def start(self) -> None:
         await self.device.power_on()

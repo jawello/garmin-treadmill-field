@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-SERVICE_UUID = "0000FE00-0000-1000-8000-00805F9B34FB"
-NOTIFY_UUID = "0000FE01-0000-1000-8000-00805F9B34FB"
-WRITE_UUID = "0000FE02-0000-1000-8000-00805F9B34FB"
+# 16-bit form, exactly as the R1 Pro declares them: GATT discovery by UUID ("find by
+# type value") compares the wire bytes, so the 128-bit form never matches the treadmill.
+SERVICE_UUID = "FE00"
+NOTIFY_UUID = "FE01"
+WRITE_UUID = "FE02"
 
 QUERY = bytes.fromhex("f7a20000a2fd")
 START = bytes.fromhex("f7a20401a7fd")
