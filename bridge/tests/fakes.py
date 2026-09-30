@@ -10,6 +10,7 @@ from bumble.core import UUID
 from bumble.device import Device, Peer
 from bumble.hci import Address, OwnAddressType
 from bumble.host import Host
+from bumble.keys import MemoryKeyStore
 from bumble.link import LocalLink
 from bumble.transport.common import AsyncPipeSink
 
@@ -20,7 +21,9 @@ def virtual_device(link: LocalLink, name: str) -> Device:
     n = next(_counter)
     public = f"F0:00:00:00:00:{n:02X}"
     controller = Controller(name, link=link, public_address=public)
-    return Device(name=name, address=Address(f"C0:00:00:00:00:{n:02X}"), host=Host(controller, AsyncPipeSink(controller)))
+    device = Device(name=name, address=Address(f"C0:00:00:00:00:{n:02X}"), host=Host(controller, AsyncPipeSink(controller)))
+    device.keystore = MemoryKeyStore()  # production gets a JsonKeyStore from its config in power_on()
+    return device
 
 
 class FakeWatch:

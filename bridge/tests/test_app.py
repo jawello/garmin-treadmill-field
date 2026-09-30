@@ -109,3 +109,13 @@ async def test_unbonded_watch_does_not_count(link, tmp_path):
         assert c.store.buckets(0, 10**11) == []
     finally:
         task.cancel()
+
+
+async def test_build_leaves_the_keystore_to_power_on(link, tmp_path):
+    # Bumble creates the persistent JsonKeyStore (keys.json) in power_on(); build() runs
+    # earlier and must not replace it, or bonds would neither load nor persist.
+    dev_a = virtual_device(link, "radio-a")
+    dev_a.keystore = None  # as in production before power_on()
+    build(dev_a, None, Config(api_token="t"), Store(str(tmp_path / "k.db")), State(str(tmp_path / "k.json")),
+          OwnAddressType.RANDOM, time_synced=lambda: True, timings=FAST)
+    assert dev_a.keystore is None

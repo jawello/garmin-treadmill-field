@@ -10,7 +10,6 @@ from dataclasses import dataclass
 
 from bumble.device import Device
 from bumble.hci import OwnAddressType
-from bumble.keys import MemoryKeyStore
 
 from .bridge import Bridge
 from .ciq_link import CiqLink
@@ -92,8 +91,6 @@ def build(
     hub = StatusHub()
     odometer = Odometer()
     recorder = SessionRecorder(store, time_synced)
-    if dev_a.keystore is None:
-        dev_a.keystore = MemoryKeyStore()
     owner = OwnerPresence([dev_a, dev_b])
     refreshes: set[asyncio.Task] = set()
 
