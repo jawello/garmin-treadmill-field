@@ -76,6 +76,8 @@ class TreadmillClient:
             self._pending = [(STOP, now)]
         elif command == START:
             self._pending = [(c, t) for c, t in self._pending if c != START] + [(START, now)]
+            # Mark the start now: the foot pod speed hold must beat Garmin Auto Pause.
+            self._hub.note_start()
         else:
             raise ValueError(f"not a belt command: {command.hex()}")
 

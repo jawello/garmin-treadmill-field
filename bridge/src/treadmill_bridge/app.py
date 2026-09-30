@@ -130,6 +130,15 @@ def build(
         ciq = CiqLink(dev_b, hub, treadmill.send_command, own_address_type)
         ciq.install()
     bridge = Bridge(hub, footpod, ciq, grace_s=timings.grace_s)
+    pushes: set[asyncio.Task] = set()
+
+    def push_foot_pod() -> None:
+        # A start was requested: send the (held) speed now instead of on the next tick.
+        task = asyncio.ensure_future(footpod.tick(time.monotonic()))
+        pushes.add(task)
+        task.add_done_callback(pushes.discard)
+
+    hub.on_start(push_foot_pod)
     return Components(dev_a, dev_b, hub, odometer, store, recorder, treadmill, footpod, ciq, bridge, owner, timings)
 
 

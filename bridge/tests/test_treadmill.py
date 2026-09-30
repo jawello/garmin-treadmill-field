@@ -114,3 +114,12 @@ async def test_stale_start_is_never_sent_after_reconnect(link):
         assert p.START not in tm.writes
     finally:
         task.cancel()
+
+
+def test_start_request_marks_start_immediately():
+    # The foot pod speed hold must begin when the field asks, not when the queued
+    # command finally reaches the treadmill (Garmin Auto Pause reacts within ~0.5 s).
+    hub = StatusHub()
+    client = TreadmillClient(None, hub, "C0:00:00:00:00:01", OwnAddressType.RANDOM)
+    client.send_command(p.START)
+    assert hub.last_start_at is not None

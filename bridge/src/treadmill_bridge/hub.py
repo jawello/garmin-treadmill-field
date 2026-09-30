@@ -18,12 +18,16 @@ class StatusHub:
         self.last_start_at: float | None = None
         self._status_listeners: list[Callable[[Status], None]] = []
         self._link_listeners: list[Callable[[bool], None]] = []
+        self._start_listeners: list[Callable[[], None]] = []
 
     def on_status(self, listener: Callable[[Status], None]) -> None:
         self._status_listeners.append(listener)
 
     def on_link(self, listener: Callable[[bool], None]) -> None:
         self._link_listeners.append(listener)
+
+    def on_start(self, listener: Callable[[], None]) -> None:
+        self._start_listeners.append(listener)
 
     def publish(self, status: Status) -> None:
         self.latest = status
@@ -41,6 +45,8 @@ class StatusHub:
 
     def note_start(self) -> None:
         self.last_start_at = self._clock()
+        for listener in self._start_listeners:
+            listener()
 
     def fresh_status(self, max_age: float) -> Status | None:
         if self.latest is None or self.latest_at is None:
