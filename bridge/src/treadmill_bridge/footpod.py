@@ -74,6 +74,7 @@ class FootPod:
         self._clock = clock
         self._name = name
         self.advertising = False
+        self._sent_speed = 0.0
         self.measurement = Characteristic(
             RSC_MEASUREMENT, Characteristic.Properties.NOTIFY, Characteristic.READABLE, bytes(8)
         )
@@ -156,8 +157,18 @@ class FootPod:
     def payload(self, now: float) -> bytes:
         status = self._hub.fresh_status(STATUS_FRESH_S)
         speed = pod_speed_mps(status, now, self._hub.last_start_at, self._hold)
+        if speed == 0.0 and self._sent_speed > 0.0:
+            log.warning("foot pod speed 0 after %.2f m/s: %s", self._sent_speed, self._zero_reason(status))
+        self._sent_speed = speed
         strides = self._odometer.cadence_spm(now) // 2 if status is not None else 0
         return rsc_measurement(speed, strides, self._odometer.smoothed_distance_m(now))
+
+    def _zero_reason(self, status: Status | None) -> str:
+        if status is not None:
+            return f"treadmill reports state {status.state}"
+        if self._hub.latest_at is None:
+            return "no status yet"
+        return f"no fresh status (last {self._clock() - self._hub.latest_at:.1f} s ago)"
 
     async def tick(self, now: float) -> None:
         await self._device.notify_subscribers(self.measurement, self.payload(now))

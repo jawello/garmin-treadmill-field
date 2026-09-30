@@ -114,3 +114,17 @@ async def test_start_readvertises_after_watch_leaves(link, monkeypatch):
     await asyncio.sleep(0.1)
     await pod.start()  # next tick after the watch left: back on air
     assert pod_dev.is_advertising
+
+
+async def test_payload_logs_when_speed_drops_to_zero(link, caplog):
+    now = [100.0]
+    hub, odo = StatusHub(clock=lambda: now[0]), Odometer()
+    pod = FootPod(virtual_device(link, "pod"), hub, odo, OwnAddressType.RANDOM, clock=lambda: now[0])
+    hub.publish(p.parse_status(p.build_status(1, 45, 0, 0, 0)))
+    pod.payload(now[0])
+    now[0] = 104.5  # no reply from the treadmill for 4.5 s
+    with caplog.at_level("WARNING", logger="treadmill_bridge.footpod"):
+        pod.payload(now[0])
+        pod.payload(now[0])  # still zero: reported once
+    drops = [r.getMessage() for r in caplog.records if "speed 0" in r.getMessage()]
+    assert drops == ["foot pod speed 0 after 1.25 m/s: no fresh status (last 4.5 s ago)"]
