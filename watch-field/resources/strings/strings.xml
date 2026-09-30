@@ -3,7 +3,7 @@
     <string id="StatusSearching">Searching...</string>
     <string id="StatusConnected">Connected</string>
     <string id="StatusError">Link error</string>
-    <string id="StepsLabel">steps</string>
+    <string id="StepsLabel">Treadmill steps</string>
     <string id="ControlBeltTitle">Start/stop the belt with the activity timer</string>
     <string id="FitSpeedLabel">Treadmill speed</string>
     <string id="FitSpeedUnits">km/h</string>

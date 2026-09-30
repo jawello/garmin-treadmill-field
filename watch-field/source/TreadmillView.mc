@@ -108,35 +108,17 @@ class TreadmillView extends WatchUi.DataField {
         dc.clear();
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
 
-        var w = dc.getWidth();
         var h = dc.getHeight();
-        locateSubscreen(w);
+        locateSubscreen(dc.getWidth());
         var tall = h >= TALL_MIN_HEIGHT;
         var now = System.getTimer();
-        var metric = System.getDeviceSettings().distanceUnits == System.UNIT_METRIC;
-        var dist = Fmt.distance(_acc.getDisplayDistM(), metric);
-        var totals = dist + " | " + _acc.getTotalSteps().toString();
-
-        var status = statusText(now);
-        if (status != null) {
-            if (tall && _acc.hasData()) {
-                drawLine(dc, h * 0.38, Graphics.FONT_SMALL, status);
-                drawLine(dc, h * 0.68, Graphics.FONT_TINY, totals);
-            } else {
-                drawLine(dc, h / 2, tall ? Graphics.FONT_SMALL : Graphics.FONT_TINY, status);
-            }
+        var kind = FieldDisplay.choose(_link.getState() as Number, bannerActive(now), _acc.getSpeedMps(now) != null);
+        if (kind != FieldDisplay.STEPS) {
+            drawLine(dc, h / 2, tall ? Graphics.FONT_SMALL : Graphics.FONT_TINY, statusText(kind));
             return;
         }
-
-        var speed = Fmt.speed(_acc.getSpeedMps(now), metric) + " " + Fmt.speedUnit(metric);
-        if (tall) {
-            drawLine(dc, h * 0.24, Graphics.FONT_MEDIUM, speed);
-            drawLine(dc, h * 0.52, Graphics.FONT_SMALL, dist + " " + Fmt.distanceUnit(metric));
-            drawLine(dc, h * 0.78, Graphics.FONT_SMALL, _acc.getTotalSteps().toString() + " " + _txtSteps);
-        } else {
-            drawLine(dc, h * 0.3, Graphics.FONT_TINY, speed);
-            drawLine(dc, h * 0.72, Graphics.FONT_TINY, totals);
-        }
+        drawLine(dc, h * 0.46, tall ? Graphics.FONT_TINY : Graphics.FONT_XTINY, _txtSteps);
+        drawNumber(dc, h * 0.75, h * 0.45, _acc.getTotalSteps().toString());
     }
 
     hidden function handleRun() as Void {
@@ -155,18 +137,15 @@ class TreadmillView extends WatchUi.DataField {
         return Application.Properties.getValue("controlBelt") == true;
     }
 
-    hidden function statusText(nowMs as Number) as String? {
-        var state = _link.getState() as Number;
-        if (state == LinkState.ERROR) {
-            return _txtError;
-        }
-        if (state == LinkState.SEARCHING) {
+    hidden function bannerActive(nowMs as Number) as Boolean {
+        return _connectedSinceMs != null && nowMs - _connectedSinceMs < CONNECTED_BANNER_MS;
+    }
+
+    hidden function statusText(kind as Number) as String {
+        if (kind == FieldDisplay.SEARCHING) {
             return _txtSearching;
         }
-        if (_connectedSinceMs != null && nowMs - _connectedSinceMs < CONNECTED_BANNER_MS) {
-            return _txtConnected;
-        }
-        return null;
+        return kind == FieldDisplay.CONNECTED ? _txtConnected : _txtError;
     }
 
     // The subscreen sits in the top-right screen corner, so only a field touching
@@ -184,6 +163,22 @@ class TreadmillView extends WatchUi.DataField {
         }
         _subLeft = box.x - (System.getDeviceSettings().screenWidth - fieldWidth);
         _subBottom = box.y + box.height;
+    }
+
+    // The step count: the biggest number font that fits the free width and the given height.
+    hidden function drawNumber(dc as Graphics.Dc, y as Numeric, maxHeight as Numeric, text as String) as Void {
+        var w = dc.getWidth();
+        var maxWidth = SubscreenLayout.usableWidth(w, y, _subLeft, _subBottom) - 4;
+        var fonts = [Graphics.FONT_NUMBER_HOT, Graphics.FONT_NUMBER_MEDIUM, Graphics.FONT_NUMBER_MILD,
+            Graphics.FONT_LARGE, Graphics.FONT_MEDIUM, Graphics.FONT_SMALL];
+        var chosen = fonts[fonts.size() - 1];
+        for (var i = 0; i < fonts.size(); i++) {
+            if (dc.getTextWidthInPixels(text, fonts[i]) <= maxWidth && dc.getFontHeight(fonts[i]) <= maxHeight) {
+                chosen = fonts[i];
+                break;
+            }
+        }
+        dc.drawText(SubscreenLayout.centerX(w, y, _subLeft, _subBottom), y, chosen, text, JUSTIFY);
     }
 
     // Draws text centred in the free width of its row, stepping the font down until it fits.

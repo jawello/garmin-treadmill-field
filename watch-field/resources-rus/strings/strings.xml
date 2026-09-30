@@ -3,7 +3,7 @@
     <string id="StatusSearching">Поиск дорожки...</string>
     <string id="StatusConnected">Подключено</string>
     <string id="StatusError">Ошибка связи</string>
-    <string id="StepsLabel">шаг.</string>
+    <string id="StepsLabel">Шаги дорожки</string>
     <string id="ControlBeltTitle">Запуск/остановка ленты вместе с таймером</string>
     <string id="FitSpeedLabel">Скорость дорожки</string>
     <string id="FitSpeedUnits">км/ч</string>
