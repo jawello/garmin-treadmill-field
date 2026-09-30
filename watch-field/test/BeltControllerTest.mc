@@ -113,13 +113,38 @@ function beltResumeCancelsPendingRetry(logger as Logger) as Boolean {
 }
 
 (:test)
-function beltStopsRightAfterStartBeforeStatusArrives(logger as Logger) as Boolean {
+function beltIgnoresPauseRightAfterRun(logger as Logger) as Boolean {
+    // Garmin Auto Pause pauses again within a second of a resume (the belt is still in its
+    // countdown, speed 0). That pause must not stop the belt we just started.
     var link = new FakeLink();
     var belt = new BeltController(link);
     belt.onRun(true, LinkState.CONNECTED, 0, 0);
-    belt.onHalt(true, LinkState.CONNECTED, 0, 500);
+    belt.onHalt(true, LinkState.CONNECTED, 7, 500);
+    belt.onHalt(true, LinkState.CONNECTED, 1, 4999);
     Test.assertEqual(link.starts, 1);
+    Test.assertEqual(link.stops, 0);
+    return true;
+}
+
+(:test)
+function beltStopsOnPauseAfterTheGuard(logger as Logger) as Boolean {
+    var link = new FakeLink();
+    var belt = new BeltController(link);
+    belt.onRun(true, LinkState.CONNECTED, 0, 0);
+    belt.onHalt(true, LinkState.CONNECTED, 1, 5000);
     Test.assertEqual(link.stops, 1);
+    return true;
+}
+
+(:test)
+function beltGuardAppliesEvenWhenNoStartWasNeeded(logger as Logger) as Boolean {
+    // Auto-resumed because the belt was already running: an instant auto-pause glitch
+    // must not stop it either.
+    var link = new FakeLink();
+    var belt = new BeltController(link);
+    belt.onRun(true, LinkState.CONNECTED, 1, 0);
+    belt.onHalt(true, LinkState.CONNECTED, 1, 800);
+    Test.assertEqual(link.stops, 0);
     return true;
 }
 

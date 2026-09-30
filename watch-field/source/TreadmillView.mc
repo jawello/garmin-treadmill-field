@@ -117,8 +117,8 @@ class TreadmillView extends WatchUi.DataField {
             drawLine(dc, h / 2, tall ? Graphics.FONT_SMALL : Graphics.FONT_TINY, statusText(kind));
             return;
         }
-        drawLine(dc, h * 0.46, tall ? Graphics.FONT_TINY : Graphics.FONT_XTINY, _txtSteps);
-        drawNumber(dc, h * 0.75, h * 0.45, _acc.getTotalSteps().toString());
+        drawLine(dc, h * 0.43, tall ? Graphics.FONT_TINY : Graphics.FONT_XTINY, _txtSteps);
+        drawNumber(dc, h * 0.74, h * 0.44, _acc.getTotalSteps().toString());
     }
 
     hidden function handleRun() as Void {
