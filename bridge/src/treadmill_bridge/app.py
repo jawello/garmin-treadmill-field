@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from bumble.device import Device
 from bumble.hci import OwnAddressType
+from bumble.keys import MemoryKeyStore
 
 from .bridge import Bridge
 from .ciq_link import CiqLink
@@ -17,6 +18,7 @@ from .config import Config, State
 from .footpod import FootPod
 from .hub import StatusHub
 from .odometer import Odometer
+from .owner import OwnerPresence
 from .sessions import SessionRecorder
 from .storage import Store
 from .treadmill import TreadmillClient
@@ -49,14 +51,17 @@ class Components:
     footpod: FootPod
     ciq: CiqLink | None
     bridge: Bridge
+    owner: OwnerPresence
     timings: Timings
 
     async def run_ble(self) -> None:
         async def ticker() -> None:
             last_flush = time.monotonic()
+            await self._refresh_owners()
             while True:
                 await self.bridge.tick()
                 if time.monotonic() - last_flush >= self.timings.flush_s:
+                    await self._refresh_owners()
                     try:
                         self.recorder.flush(time.time())
                         self.store.purge(int(time.time()) - RETENTION_S)
@@ -66,6 +71,12 @@ class Components:
                 await asyncio.sleep(self.timings.tick_s)
 
         await asyncio.gather(self.treadmill.run(), ticker())
+
+    async def _refresh_owners(self) -> None:
+        try:
+            await self.owner.refresh_owners(self.dev_a)
+        except Exception:
+            log.exception("reading bonded watches failed")
 
 
 def build(
@@ -81,9 +92,25 @@ def build(
     hub = StatusHub()
     odometer = Odometer()
     recorder = SessionRecorder(store, time_synced)
+    if dev_a.keystore is None:
+        dev_a.keystore = MemoryKeyStore()
+    owner = OwnerPresence([dev_a, dev_b])
+    refreshes: set[asyncio.Task] = set()
+
+    def on_bond(*_args) -> None:
+        # A watch just bonded with the foot pod: it counts from now on, not from the next poll.
+        task = asyncio.ensure_future(owner.refresh_owners(dev_a))
+        refreshes.add(task)
+        task.add_done_callback(refreshes.discard)
+
+    dev_a.on(Device.EVENT_KEY_STORE_UPDATE, on_bond)
 
     def on_status(status) -> None:
         steps, distance = odometer.update(status, time.monotonic())
+        if not owner.present():
+            # Someone else is walking (or the owner's watch is gone): keep the counter
+            # baseline moving, but record nothing for the owner.
+            steps, distance = 0, 0.0
         recorder.record(status, steps, distance, time.time())
 
     hub.on_status(on_status)
@@ -106,7 +133,7 @@ def build(
         ciq = CiqLink(dev_b, hub, treadmill.send_command, own_address_type)
         ciq.install()
     bridge = Bridge(hub, footpod, ciq, grace_s=timings.grace_s)
-    return Components(dev_a, dev_b, hub, odometer, store, recorder, treadmill, footpod, ciq, bridge, timings)
+    return Components(dev_a, dev_b, hub, odometer, store, recorder, treadmill, footpod, ciq, bridge, owner, timings)
 
 
 def status_snapshot(c: Components) -> dict:
@@ -120,6 +147,7 @@ def status_snapshot(c: Components) -> dict:
         },
         "foot_pod": {"advertising": c.footpod.advertising},
         "field_bridge": {"present": c.ciq is not None, "advertising": bool(c.ciq and c.ciq.advertising)},
+        "owner": {"present": c.owner.present(), "connected": c.owner.connected(), "watches": sorted(c.owner.owners)},
         "totals": {"steps": c.odometer.steps_total, "distance_m": c.odometer.distance_m},
         "uptime_s": round(time.monotonic() - STARTED),
     }

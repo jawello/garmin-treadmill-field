@@ -84,3 +84,28 @@ async def test_storage_failure_does_not_stop_the_daemon(link, tmp_path):
         assert c.hub.link_up and c.footpod.advertising
     finally:
         task.cancel()
+
+
+async def test_steps_not_recorded_without_the_owners_watch(link, tmp_path):
+    # Someone else walks: the treadmill counts steps, but no bonded watch is connected.
+    _, c, task = await start_system(link, tmp_path)
+    try:
+        await asyncio.sleep(0.8)
+        c.recorder.flush(10**10)
+        assert c.store.buckets(0, 10**11) == []
+        assert status_snapshot(c)["owner"]["present"] is False
+    finally:
+        task.cancel()
+
+
+async def test_unbonded_watch_does_not_count(link, tmp_path):
+    _, c, task = await start_system(link, tmp_path)
+    try:
+        watch_dev = virtual_device(link, "not-owner")
+        await watch_dev.power_on()
+        await FakeWatch(watch_dev).connect(c.dev_a.random_address)  # connected but never paired
+        await asyncio.sleep(0.8)
+        c.recorder.flush(10**10)
+        assert c.store.buckets(0, 10**11) == []
+    finally:
+        task.cancel()

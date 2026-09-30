@@ -166,6 +166,12 @@ Key decisions:
 - **Session:** from "belt running" until the belt stays stopped or the treadmill stays
   unreachable for more than 2 min. Short stops stay in one session. Sessions serve
   status and history; buckets go to Health Connect.
+- **Owner only (added 2026-09-30):** steps are recorded only while the owner's watch is
+  connected to the bridge (foot pod on radio A or FE00 on radio B). The owner is any
+  watch bonded with the foot pod (read from the bridge keystore, refreshed when a new
+  bond is stored), so nothing needs configuring; someone else walking without such a
+  watch is not counted. A watch link drop keeps counting for 5 minutes. Without the
+  owner, the odometer baseline keeps moving so their steps never leak in later.
 - **Time:** the Pi has no RTC. Until systemd-timesyncd reports synchronisation, the
   daemon does not record buckets and logs a warning.
 - **Storage:** SQLite `/var/lib/treadmill-bridge/bridge.db` (`step_buckets`,

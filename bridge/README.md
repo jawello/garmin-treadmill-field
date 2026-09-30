@@ -25,6 +25,13 @@ enables `treadmill-bridge.service`.
   `/api/v1/steps?since=<unix>&until=<unix>`, `/api/v1/sessions?since=<unix>`.
 - Data: `/var/lib/treadmill-bridge/` (`bridge.db`, `keys.json`, `state.json`).
 
+## Whose steps are recorded
+
+Only while **your** watch is connected to the bridge (the watch that paired the foot pod,
+typically during a Treadmill Walk activity). Someone else walking on the treadmill, or you
+walking without the activity open, is not recorded. A drop of the watch link keeps counting
+for 5 minutes. `GET /api/v1/status` shows `owner.present` and the bonded watches.
+
 ## Pair the foot pod
 
 Watch: hold MENU → Sensors & Accessories → Add New → Foot Pod, pick "Treadmill Pod",
