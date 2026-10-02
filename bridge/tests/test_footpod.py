@@ -25,9 +25,21 @@ def test_pod_speed_hold_during_start():
     assert pod_speed_mps(countdown, 10.0, None, hold=False) == 0.0
     assert abs(pod_speed_mps(countdown, 10.0, None, hold=True) - 1.0 / 3.6) < 1e-9
     assert abs(pod_speed_mps(stopped, 10.0, 5.0, hold=True) - 1.0 / 3.6) < 1e-9  # 5 s after start
-    assert pod_speed_mps(stopped, 20.0, 5.0, hold=True) == 0.0  # 15 s after start
+    assert pod_speed_mps(stopped, 21.0, 5.0, hold=True) == 0.0  # 16 s after start
     assert pod_speed_mps(None, 10.0, 9.0, hold=True) == 0.0  # no data at all
 
+
+
+def test_pod_speed_holds_through_the_slow_ramp_after_start():
+    ramp = p.parse_status(p.build_status(1, 4, 0, 0, 0))  # 0.4 km/h right after the countdown
+    hold = 1.0 / 3.6
+    assert abs(pod_speed_mps(ramp, 10.0, 5.0, hold=True) - hold) < 1e-9  # 5 s after start
+    assert abs(pod_speed_mps(ramp, 19.0, 5.0, hold=True) - hold) < 1e-9  # 14 s after start
+    assert pod_speed_mps(ramp, 21.0, 5.0, hold=True) == 4 / 36  # 16 s: the real speed
+    assert pod_speed_mps(ramp, 10.0, 5.0, hold=False) == 4 / 36
+    assert pod_speed_mps(ramp, 10.0, None, hold=True) == 4 / 36  # slow walk, no start asked
+    walking = p.parse_status(p.build_status(1, 45, 0, 0, 0))
+    assert pod_speed_mps(walking, 10.0, 5.0, hold=True) == 1.25  # never lowered
 
 async def test_watch_pairs_and_receives_measurement(link):
     pod_dev, watch_dev = virtual_device(link, "pod"), virtual_device(link, "watch")

@@ -134,9 +134,9 @@ Key decisions:
     survives counter resets, smooths between 10 m steps (never more than +10 m ahead,
     never decreasing).
 - **`hold_speed_during_start`** (config, default `false`): while the belt is in
-  countdown (states 6–9) or within 8 s after a start command, report 1.0 km/h instead of
-  0 so Garmin Auto Pause does not pause the timer and make the field stop the belt.
-  Whether to enable it is decided in acceptance.
+  countdown (states 6–9) or within 15 s after a start command, report at least 1.0 km/h
+  (the belt first crawls at ~0.4 km/h after the countdown) so Garmin Auto Pause does not
+  pause the timer and make the field stop the belt. Enabled on the Pi since acceptance.
 - **Pairing:** Just Works with bonding (IO capability NoInputNoOutput); numeric
   comparison is auto-accepted if the watch asks; keys in
   `/var/lib/treadmill-bridge/keys.json`. Lost keys → remove and re-add the foot pod on

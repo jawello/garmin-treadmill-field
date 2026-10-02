@@ -31,7 +31,7 @@ FLAGS_GENERAL_DISCOVERABLE_LE_ONLY = 0x06
 MEASUREMENT_FLAGS = 0x02  # total distance present, walking
 FEATURE_TOTAL_DISTANCE = 0x0002
 HOLD_SPEED_MPS = 1.0 / 3.6
-HOLD_AFTER_START_S = 8.0
+HOLD_AFTER_START_S = 15.0  # countdown plus the slow ramp up to walking speed
 STATUS_FRESH_S = 3.0
 
 
@@ -46,7 +46,7 @@ def pod_speed_mps(status: Status | None, now: float, last_start_at: float | None
     if status is None:
         return 0.0
     speed = status.speed_mps
-    if hold and speed == 0.0:
+    if hold and speed < HOLD_SPEED_MPS:
         starting = is_countdown(status.state) or (
             last_start_at is not None and now - last_start_at < HOLD_AFTER_START_S
         )
