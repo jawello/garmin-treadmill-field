@@ -17,7 +17,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew test lint assembleRelease
       - uses: actions/upload-artifact@v4
