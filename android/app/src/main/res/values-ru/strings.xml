@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Treadmill Sync</string>
-    <string name="status_title">Статус</string>
     <string name="status_never">Ещё не синхронизировалось</string>
     <string name="status_last_success">Последняя синхронизация: %1$s, записей: %2$d</string>
     <string name="status_last_problem">Последняя попытка %1$s: %2$s</string>
@@ -29,4 +28,15 @@
     <string name="outcome_hc_unavailable">Health Connect недоступен</string>
     <string name="outcome_rate_limited">Лимит Health Connect, повторю позже</string>
     <string name="outcome_unknown">Неизвестная ошибка</string>
+    <string name="last_sync_title">Последняя синхронизация</string>
+    <string name="last_sync_window">Окно %1$s – %2$s · записей отправлено в Health Connect: %3$d</string>
+    <string name="history_title">История дорожки (30 дней)</string>
+    <string name="history_empty">Прогулок на дорожке пока нет</string>
+    <string name="day_today">Сегодня</string>
+    <string name="day_yesterday">Вчера</string>
+    <string name="day_summary">%1$s — шаги: %2$s · %3$s км · %4$s</string>
+    <string name="session_line">%1$s–%2$s · %3$s · шаги: %4$s · %5$s км · %6$s км/ч</string>
+    <string name="duration_h_min">%1$d ч %2$02d мин</string>
+    <string name="duration_min">%1$d мин</string>
+    <string name="settings_title">Настройки</string>
 </resources>

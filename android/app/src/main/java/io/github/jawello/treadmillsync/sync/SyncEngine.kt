@@ -6,6 +6,7 @@ import io.github.jawello.treadmillsync.bridge.BridgeApi
 import io.github.jawello.treadmillsync.bridge.BridgeException
 import io.github.jawello.treadmillsync.health.HealthStore
 import io.github.jawello.treadmillsync.health.RecordMapper
+import io.github.jawello.treadmillsync.history.HistoryStore
 import io.github.jawello.treadmillsync.net.GateResult
 import io.github.jawello.treadmillsync.net.NetworkGate
 import io.github.jawello.treadmillsync.settings.Settings
@@ -23,6 +24,7 @@ class SyncEngine(
     private val bridge: (Settings) -> BridgeApi,
     private val health: HealthStore,
     private val state: SyncStateStore,
+    private val history: HistoryStore,
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
@@ -58,7 +60,8 @@ class SyncEngine(
         }
         healthCall { if (!health.hasWritePermissions()) return SyncOutcome.PermissionsMissing }?.let { return it }
 
-        val window = window(now, state.read().watermark)
+        val watermark = if (history.needsBackfill()) null else state.read().watermark
+        val window = window(now, watermark)
         val buckets = try {
             bridge(s).steps(window.first, window.last)
         } catch (e: BridgeException) {
@@ -68,7 +71,12 @@ class SyncEngine(
         val records = buckets.flatMap { RecordMapper.toRecords(it, zoneId) }
         healthCall { records.chunked(BATCH).forEach { health.insert(it) } }?.let { return it }
 
-        state.recordSuccess(watermark = window.last, at = now, written = records.size)
+        try {
+            history.merge(buckets, now)
+        } catch (e: IOException) { // the history is only for display; the sync itself succeeded
+            Log.w(TAG, "could not update the history", e)
+        }
+        state.recordSuccess(since = window.first, watermark = window.last, at = now, written = records.size)
         return SyncOutcome.Success(records.size)
     }
 

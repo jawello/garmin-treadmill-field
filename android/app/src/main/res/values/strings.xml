@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Treadmill Sync</string>
-    <string name="status_title">Status</string>
     <string name="status_never">Not synced yet</string>
     <string name="status_last_success">Last sync: %1$s, records written: %2$d</string>
     <string name="status_last_problem">Last attempt %1$s: %2$s</string>
@@ -29,4 +28,15 @@
     <string name="outcome_hc_unavailable">Health Connect unavailable</string>
     <string name="outcome_rate_limited">Health Connect limit, retrying later</string>
     <string name="outcome_unknown">Unknown error</string>
+    <string name="last_sync_title">Last sync</string>
+    <string name="last_sync_window">Window %1$s – %2$s · records sent to Health Connect: %3$d</string>
+    <string name="history_title">Treadmill history (30 days)</string>
+    <string name="history_empty">No treadmill walks yet</string>
+    <string name="day_today">Today</string>
+    <string name="day_yesterday">Yesterday</string>
+    <string name="day_summary">%1$s — steps: %2$s · %3$s km · %4$s</string>
+    <string name="session_line">%1$s–%2$s · %3$s · steps: %4$s · %5$s km · %6$s km/h</string>
+    <string name="duration_h_min">%1$d h %2$02d min</string>
+    <string name="duration_min">%1$d min</string>
+    <string name="settings_title">Settings</string>
 </resources>

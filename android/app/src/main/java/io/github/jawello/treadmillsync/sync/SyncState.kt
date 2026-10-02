@@ -14,11 +14,12 @@ data class SyncSnapshot(
     val lastWritten: Int = 0,
     val lastAttemptAt: Long? = null,
     val lastOutcome: String? = null,
+    val lastSince: Long? = null,
 )
 
 interface SyncStateStore {
     suspend fun read(): SyncSnapshot
-    suspend fun recordSuccess(watermark: Long, at: Long, written: Int)
+    suspend fun recordSuccess(since: Long, watermark: Long, at: Long, written: Int)
     suspend fun recordFailure(at: Long, outcomeKey: String)
 }
 
@@ -28,14 +29,16 @@ class DataStoreSyncState(private val store: DataStore<Preferences>) : SyncStateS
     private val lastWritten = intPreferencesKey("last_written")
     private val lastAttemptAt = longPreferencesKey("last_attempt_at")
     private val lastOutcome = stringPreferencesKey("last_outcome")
+    private val lastSince = longPreferencesKey("last_since")
 
     override suspend fun read(): SyncSnapshot {
         val p = store.data.first()
-        return SyncSnapshot(p[watermark], p[lastSuccessAt], p[lastWritten] ?: 0, p[lastAttemptAt], p[lastOutcome])
+        return SyncSnapshot(p[watermark], p[lastSuccessAt], p[lastWritten] ?: 0, p[lastAttemptAt], p[lastOutcome], p[lastSince])
     }
 
-    override suspend fun recordSuccess(watermark: Long, at: Long, written: Int) {
+    override suspend fun recordSuccess(since: Long, watermark: Long, at: Long, written: Int) {
         store.edit {
+            it[lastSince] = since
             it[this.watermark] = watermark
             it[lastSuccessAt] = at
             it[lastWritten] = written

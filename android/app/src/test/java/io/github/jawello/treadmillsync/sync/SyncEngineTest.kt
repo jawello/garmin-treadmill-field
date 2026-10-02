@@ -12,6 +12,7 @@ import io.github.jawello.treadmillsync.bridge.BridgeException
 import io.github.jawello.treadmillsync.bridge.Bucket
 import io.github.jawello.treadmillsync.health.HealthConnectStore
 import io.github.jawello.treadmillsync.health.HealthStore
+import io.github.jawello.treadmillsync.history.MemoryHistory
 import io.github.jawello.treadmillsync.net.NetworkGate
 import io.github.jawello.treadmillsync.settings.Settings
 import kotlinx.coroutines.async
@@ -52,11 +53,12 @@ class SyncEngineTest {
     private val health = HealthConnectStore(fakeClient)
     private val state = MemorySyncState()
     private val bridge = FakeBridge()
+    private val history = MemoryHistory()
     private var settings = Settings(token = "t")
     private var ssid: String? = "home"
 
     private fun engine(store: HealthStore = health, now: Long = NOW) = SyncEngine(
-        settings = { settings }, gate = NetworkGate { ssid }, bridge = { bridge }, health = store, state = state,
+        settings = { settings }, gate = NetworkGate { ssid }, bridge = { bridge }, health = store, state = state, history = history,
         clock = { Instant.ofEpochSecond(now) }, zone = { ZoneId.of("Europe/Riga") },
     )
 
@@ -199,7 +201,7 @@ class SyncEngineTest {
     @Test fun settingsFailureIsRecordedNotThrown() = runTest {
         val broken = SyncEngine(
             settings = { throw SecurityException("Could not decrypt value") }, gate = NetworkGate { ssid },
-            bridge = { bridge }, health = health, state = state, clock = { Instant.ofEpochSecond(NOW) },
+            bridge = { bridge }, health = health, state = state, history = history, clock = { Instant.ofEpochSecond(NOW) },
         )
         assertEquals(SyncOutcome.Unexpected, broken.sync())
         assertEquals("Unexpected", state.snapshot.lastOutcome)
@@ -208,5 +210,28 @@ class SyncEngineTest {
     @Test fun bridgeErrorsMapForTestConnection() {
         assertEquals(SyncOutcome.WrongToken, bridgeOutcome(BridgeException.Unauthorized()))
         assertEquals(SyncOutcome.BridgeUnreachable, bridgeOutcome(BridgeException.Unreachable(IOException())))
+    }
+
+    @Test fun historyGetsTheBucketsOnlyAfterHealthConnectAccepted() = runTest {
+        bridge.buckets = minutes(2)
+        val rejecting = FlakyHealth(health, failOn = 1, error = IOException("binder died"))
+        engine(rejecting).sync()
+        assertEquals(null, history.merged)
+        engine().sync()
+        assertEquals(minutes(2), history.merged)
+    }
+
+    @Test fun emptyHistoryBackfillsThirtyDaysOnce() = runTest {
+        state.snapshot = SyncSnapshot(watermark = NOW - 7_200)
+        engine().sync()
+        assertEquals((NOW - 30 * DAY)..(NOW - 60), bridge.calls[0])
+        engine().sync()
+        assertEquals((NOW - 60 - 3_600)..(NOW - 60), bridge.calls[1])
+    }
+
+    @Test fun successRecordsTheWindow() = runTest {
+        engine().sync()
+        assertEquals(NOW - 30 * DAY, state.snapshot.lastSince)
+        assertEquals(NOW - 60, state.snapshot.watermark)
     }
 }

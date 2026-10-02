@@ -15,10 +15,10 @@ class SyncStateTest {
         val file = tmp.root.resolve("s.preferences_pb")
         val state = DataStoreSyncState(PreferenceDataStoreFactory.create(scope = backgroundScope) { file })
         assertEquals(SyncSnapshot(), state.read())
-        state.recordSuccess(watermark = 5000, at = 5060, written = 12)
+        state.recordSuccess(since = 1000, watermark = 5000, at = 5060, written = 12)
         state.recordFailure(at = 6000, outcomeKey = "BridgeUnreachable")
-        assertEquals(SyncSnapshot(5000, 5060, 12, 6000, "BridgeUnreachable"), state.read())
-        state.recordSuccess(watermark = 7000, at = 7060, written = 0)
-        assertEquals(SyncSnapshot(7000, 7060, 0, 7060, "Success"), state.read())
+        assertEquals(SyncSnapshot(5000, 5060, 12, 6000, "BridgeUnreachable", 1000), state.read())
+        state.recordSuccess(since = 3400, watermark = 7000, at = 7060, written = 0)
+        assertEquals(SyncSnapshot(7000, 7060, 0, 7060, "Success", 3400), state.read())
     }
 }
