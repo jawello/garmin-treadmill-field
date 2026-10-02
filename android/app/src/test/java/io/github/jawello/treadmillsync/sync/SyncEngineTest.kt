@@ -175,7 +175,7 @@ class SyncEngineTest {
         val retried = listOf(SyncOutcome.BridgeUnreachable, SyncOutcome.HealthConnectUnavailable, SyncOutcome.RateLimited)
         val all = retried + listOf(SyncOutcome.Success(1), SyncOutcome.NotConfigured, SyncOutcome.NotHome,
             SyncOutcome.NetworkUnknown, SyncOutcome.CleartextBlocked, SyncOutcome.WrongToken, SyncOutcome.BridgeError(400),
-            SyncOutcome.PermissionsMissing)
+            SyncOutcome.PermissionsMissing, SyncOutcome.Unexpected)
         assertEquals(retried, all.filter { it.retry })
     }
 
@@ -186,5 +186,27 @@ class SyncEngineTest {
         assertEquals(SyncOutcome.Success(6), a.await())
         assertEquals(SyncOutcome.Success(6), b.await())
         assertEquals(3, stepRecords().size)
+    }
+
+    @Test fun unexpectedHealthErrorIsRecordedNotThrown() = runTest {
+        bridge.buckets = minutes(1)
+        val rejecting = FlakyHealth(health, failOn = 1, error = IllegalArgumentException("record rejected"))
+        assertEquals(SyncOutcome.Unexpected, engine(rejecting).sync())
+        assertEquals("Unexpected", state.snapshot.lastOutcome)
+        assertEquals(null, state.snapshot.watermark)
+    }
+
+    @Test fun settingsFailureIsRecordedNotThrown() = runTest {
+        val broken = SyncEngine(
+            settings = { throw SecurityException("Could not decrypt value") }, gate = NetworkGate { ssid },
+            bridge = { bridge }, health = health, state = state, clock = { Instant.ofEpochSecond(NOW) },
+        )
+        assertEquals(SyncOutcome.Unexpected, broken.sync())
+        assertEquals("Unexpected", state.snapshot.lastOutcome)
+    }
+
+    @Test fun bridgeErrorsMapForTestConnection() {
+        assertEquals(SyncOutcome.WrongToken, bridgeOutcome(BridgeException.Unauthorized()))
+        assertEquals(SyncOutcome.BridgeUnreachable, bridgeOutcome(BridgeException.Unreachable(IOException())))
     }
 }

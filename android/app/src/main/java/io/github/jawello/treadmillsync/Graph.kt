@@ -15,12 +15,16 @@ import io.github.jawello.treadmillsync.settings.SettingsStore
 import io.github.jawello.treadmillsync.sync.DataStoreSyncState
 import io.github.jawello.treadmillsync.sync.SyncEngine
 import io.github.jawello.treadmillsync.sync.SyncStateStore
+import io.github.jawello.treadmillsync.util.Once
 
 private val Context.syncStateStore by preferencesDataStore("sync_state")
 
 /** Manual wiring of the app's collaborators. */
 object Graph {
-    fun settings(context: Context) = SettingsStore(context.applicationContext)
+    // EncryptedSharedPreferences must not be created twice at once (worker and screen on first launch).
+    private val settingsStore = Once<Context, SettingsStore> { SettingsStore(it.applicationContext) }
+
+    fun settings(context: Context): SettingsStore = settingsStore.get(context)
 
     fun state(context: Context): SyncStateStore = DataStoreSyncState(context.applicationContext.syncStateStore)
 
@@ -35,9 +39,8 @@ object Graph {
 
     fun engine(context: Context): SyncEngine {
         val app = context.applicationContext
-        val settings = settings(app)
         return SyncEngine(
-            settings = { settings.load() },
+            settings = { settings(app).load() }, // inside the pass, so a keystore failure becomes an outcome
             gate = NetworkGate(AndroidSsidSource(app)),
             bridge = ::bridge,
             health = health(app),

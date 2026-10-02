@@ -44,6 +44,7 @@ android {
         warningsAsErrors = false
     }
     testOptions {
+        unitTests.isReturnDefaultValues = true // android.util.Log in production code is a no-op on the JVM
         unitTests.all { test ->
             test.systemProperty("contractDir", rootProject.file("../contract").absolutePath)
         }

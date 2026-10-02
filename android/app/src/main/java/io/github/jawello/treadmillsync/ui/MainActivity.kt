@@ -39,6 +39,8 @@ import io.github.jawello.treadmillsync.net.AndroidSsidSource
 import io.github.jawello.treadmillsync.settings.Settings
 import io.github.jawello.treadmillsync.sync.SyncScheduler
 import io.github.jawello.treadmillsync.sync.SyncSnapshot
+import io.github.jawello.treadmillsync.sync.bridgeOutcome
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -58,8 +60,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         SyncScheduler.schedule(this)
-        val store = Graph.settings(this)
-        setContent { MaterialTheme { Screen(store.load(), store::save) } }
+        val initial = try { Graph.settings(this).load() } catch (e: Exception) { Settings() } // unreadable prefs: start blank
+        setContent { MaterialTheme { Screen(initial, ::save) } }
         refresh()
     }
 
@@ -68,8 +70,24 @@ class MainActivity : ComponentActivity() {
         refresh()
     }
 
+    private fun save(settings: Settings) {
+        try {
+            Graph.settings(this).save(settings)
+        } catch (e: Exception) {
+            message.value = getString(R.string.outcome_unknown)
+        }
+    }
+
     private fun refresh() {
-        lifecycleScope.launch { snapshot.value = Graph.state(this@MainActivity).read() }
+        lifecycleScope.launch {
+            try {
+                snapshot.value = Graph.state(this@MainActivity).read()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // keep the last snapshot on screen
+            }
+        }
     }
 
     private fun syncNow() {
@@ -85,7 +103,7 @@ class MainActivity : ComponentActivity() {
                 Graph.bridge(settings.normalized()).ping()
                 getString(R.string.connection_ok)
             } catch (e: BridgeException) {
-                "${getString(R.string.outcome_bridge_error)}: ${e::class.simpleName}"
+                getString(outcomeTextRes(bridgeOutcome(e).key))
             }
         }
     }

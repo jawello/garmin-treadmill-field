@@ -1,6 +1,7 @@
 package io.github.jawello.treadmillsync.sync
 
 import android.os.RemoteException
+import android.util.Log
 import io.github.jawello.treadmillsync.bridge.BridgeApi
 import io.github.jawello.treadmillsync.bridge.BridgeException
 import io.github.jawello.treadmillsync.health.HealthStore
@@ -27,8 +28,23 @@ class SyncEngine(
 ) {
     suspend fun sync(): SyncOutcome = LOCK.withLock {
         val now = clock().epochSecond
-        val outcome = pass(now)
-        if (outcome !is SyncOutcome.Success) state.recordFailure(now, outcome.key)
+        val outcome = try {
+            pass(now)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) { // never crash "Sync now" or stall the worker without a visible status
+            Log.w(TAG, "sync pass failed", e)
+            SyncOutcome.Unexpected
+        }
+        if (outcome !is SyncOutcome.Success) {
+            try {
+                state.recordFailure(now, outcome.key)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "could not record the outcome", e)
+            }
+        }
         outcome
     }
 
@@ -46,7 +62,7 @@ class SyncEngine(
         val buckets = try {
             bridge(s).steps(window.first, window.last)
         } catch (e: BridgeException) {
-            return e.toOutcome()
+            return bridgeOutcome(e)
         }
         val zoneId = zone()
         val records = buckets.flatMap { RecordMapper.toRecords(it, zoneId) }
@@ -70,16 +86,10 @@ class SyncEngine(
         if ("rate limit" in message || "quota" in message) SyncOutcome.RateLimited else SyncOutcome.HealthConnectUnavailable
     }
 
-    private fun BridgeException.toOutcome(): SyncOutcome = when (this) {
-        is BridgeException.Unreachable -> SyncOutcome.BridgeUnreachable
-        is BridgeException.CleartextBlocked -> SyncOutcome.CleartextBlocked
-        is BridgeException.Unauthorized, is BridgeException.BadToken -> SyncOutcome.WrongToken
-        is BridgeException.BadResponse -> SyncOutcome.BridgeError(code)
-        is BridgeException.BadUrl -> SyncOutcome.BridgeError(null)
-    }
 
     companion object {
         const val BATCH = 1000
+        private const val TAG = "SyncEngine"
         private const val OVERLAP_S = 3_600L
         private const val SETTLE_S = 60L
         private const val HISTORY_S = 30 * 86_400L
