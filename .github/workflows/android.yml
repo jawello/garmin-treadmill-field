@@ -2,9 +2,9 @@ name: android
 on:
   push:
     branches: [main]
-    paths: ["android/**", "contract/**", ".github/workflows/android.yml"]
+    paths: ["android/**", "contract/**", ".github/workflows/android.yml", ".github/workflows/android-release.yml"]
   pull_request:
-    paths: ["android/**", "contract/**", ".github/workflows/android.yml"]
+    paths: ["android/**", "contract/**", ".github/workflows/android.yml", ".github/workflows/android-release.yml"]
 jobs:
   build:
     runs-on: ubuntu-latest

@@ -7,9 +7,9 @@ with minimal manual steps.
 |---|---|
 | [`watch-field/`](watch-field/README.md) | Connect IQ data field: treadmill speed, distance, steps on the watch, FIT fields, belt start/stop with the activity timer |
 | [`bridge/`](bridge/README.md) | Raspberry Pi daemon: owns the treadmill link, acts as a Garmin foot pod, bridges FE00 for the field, records minute step buckets, HTTP API |
-| `android/` | planned: syncs step buckets from the bridge into Health Connect |
+| [`android/`](android/README.md) | Treadmill Sync: copies bridge step buckets into Health Connect |
 
 Status: the watch field is done; the bridge runs on the Pi with radio A (treadmill +
-foot pod); the field bridge waits for the USB adapter; the Android companion is next.
+foot pod); the field bridge waits for the USB adapter; the Android companion is implemented.
 
 Design documents: [`docs/superpowers/specs/`](docs/superpowers/specs/).
