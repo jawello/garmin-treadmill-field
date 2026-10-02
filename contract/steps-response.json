@@ -1,0 +1,28 @@
+{
+  "buckets": [
+    {
+      "active_seconds": 60.0,
+      "distance_m": 80.0,
+      "end": 1759400060,
+      "start": 1759400000,
+      "steps": 105,
+      "version": 1759400061250
+    },
+    {
+      "active_seconds": 36.09,
+      "distance_m": 40.0,
+      "end": 1759400120,
+      "start": 1759400060,
+      "steps": 63,
+      "version": 1759400121500
+    },
+    {
+      "active_seconds": 2.0,
+      "distance_m": 0.0,
+      "end": 1759400180,
+      "start": 1759400120,
+      "steps": 0,
+      "version": 1759400181000
+    }
+  ]
+}
