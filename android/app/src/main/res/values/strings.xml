@@ -1,3 +1,32 @@
 <resources>
     <string name="app_name">Treadmill Sync</string>
+    <string name="status_title">Status</string>
+    <string name="status_never">Not synced yet</string>
+    <string name="status_last_success">Last sync: %1$s, records written: %2$d</string>
+    <string name="status_last_problem">Last attempt %1$s: %2$s</string>
+    <string name="sync_now">Sync now</string>
+    <string name="bridge_url">Bridge address</string>
+    <string name="token">Token</string>
+    <string name="save">Save</string>
+    <string name="test_connection">Test connection</string>
+    <string name="connection_ok">Bridge is reachable</string>
+    <string name="home_ssid">Home network (SSID), optional</string>
+    <string name="use_current_network">Use current network</string>
+    <string name="home_ssid_hint">When set, the app talks to the bridge only on this network. Needs location access set to “Allow all the time”.</string>
+    <string name="hc_permissions">Health Connect permissions</string>
+    <string name="hc_priority_hint">In Health Connect → App permissions → data priority for Activity, move Treadmill Sync above Garmin Connect so treadmill minutes are not counted twice.</string>
+    <string name="open_hc_settings">Open Health Connect settings</string>
+    <string name="rationale">Treadmill Sync writes the steps and distance your Kingsmith treadmill recorded on the home bridge. It never reads your health data.</string>
+    <string name="outcome_success">Synced</string>
+    <string name="outcome_not_configured">Enter the bridge address and token</string>
+    <string name="outcome_not_home">Not home network</string>
+    <string name="outcome_network_unknown">Can\'t identify network: enable location / allow all the time</string>
+    <string name="outcome_bridge_unreachable">Bridge unreachable</string>
+    <string name="outcome_cleartext_blocked">Plain HTTP is not allowed for this address</string>
+    <string name="outcome_wrong_token">Wrong token</string>
+    <string name="outcome_bridge_error">Bridge response error</string>
+    <string name="outcome_permissions">Health Connect permissions needed</string>
+    <string name="outcome_hc_unavailable">Health Connect unavailable</string>
+    <string name="outcome_rate_limited">Health Connect limit, retrying later</string>
+    <string name="outcome_unknown">Unknown error</string>
 </resources>

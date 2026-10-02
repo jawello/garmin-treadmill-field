@@ -1,3 +1,32 @@
 <resources>
     <string name="app_name">Treadmill Sync</string>
+    <string name="status_title">Статус</string>
+    <string name="status_never">Ещё не синхронизировалось</string>
+    <string name="status_last_success">Последняя синхронизация: %1$s, записей: %2$d</string>
+    <string name="status_last_problem">Последняя попытка %1$s: %2$s</string>
+    <string name="sync_now">Синхронизировать сейчас</string>
+    <string name="bridge_url">Адрес моста</string>
+    <string name="token">Токен</string>
+    <string name="save">Сохранить</string>
+    <string name="test_connection">Проверить связь</string>
+    <string name="connection_ok">Мост на связи</string>
+    <string name="home_ssid">Домашняя сеть (SSID), необязательно</string>
+    <string name="use_current_network">Подставить текущую сеть</string>
+    <string name="home_ssid_hint">Если задано, приложение обращается к мосту только в этой сети. Нужен доступ к геолокации «Разрешить всегда».</string>
+    <string name="hc_permissions">Разрешения Health Connect</string>
+    <string name="hc_priority_hint">В Health Connect → Разрешения приложений → приоритет данных для «Активности» поставьте Treadmill Sync выше Garmin Connect, чтобы минуты на дорожке не считались дважды.</string>
+    <string name="open_hc_settings">Открыть настройки Health Connect</string>
+    <string name="rationale">Treadmill Sync записывает шаги и расстояние, которые дорожка Kingsmith передала домашнему мосту. Приложение не читает ваши данные о здоровье.</string>
+    <string name="outcome_success">Синхронизировано</string>
+    <string name="outcome_not_configured">Укажите адрес моста и токен</string>
+    <string name="outcome_not_home">Не домашняя сеть</string>
+    <string name="outcome_network_unknown">Не удалось определить сеть: включите геолокацию / разрешите доступ всегда</string>
+    <string name="outcome_bridge_unreachable">Мост недоступен</string>
+    <string name="outcome_cleartext_blocked">Для этого адреса HTTP без шифрования запрещён</string>
+    <string name="outcome_wrong_token">Неверный токен</string>
+    <string name="outcome_bridge_error">Ошибка ответа моста</string>
+    <string name="outcome_permissions">Нужны разрешения Health Connect</string>
+    <string name="outcome_hc_unavailable">Health Connect недоступен</string>
+    <string name="outcome_rate_limited">Лимит Health Connect, повторю позже</string>
+    <string name="outcome_unknown">Неизвестная ошибка</string>
 </resources>
