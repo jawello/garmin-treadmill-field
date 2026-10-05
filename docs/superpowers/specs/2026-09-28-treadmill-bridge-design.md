@@ -127,7 +127,11 @@ Key decisions:
     (total distance supported);
   - Battery `0x180F`: level 100 (no low-battery alerts);
   - Device Information `0x180A`: manufacturer "treadmill-bridge".
-- **Measurement, 1 Hz,** flags `0x02` (total distance present, walking):
+- **Measurement, 1 Hz on a fixed grid,** flags `0x02` (total distance present, walking).
+  The watch sets the pod link to a 1000 ms interval and takes one measurement per
+  connection event. Until 2026-10-05 the ticker slept 1 s after its work (~1.03 s), so
+  every ~33 s the watch got nothing, recorded speed 0 and Auto Pause stopped the belt;
+  2 Hz made it worse, piling notifications into radio A's shared ACL buffers.
   - speed = belt km/h ÷ 3.6 × 256 when belt state is 1 (running), else 0;
   - cadence = steps/min ÷ 2 over the last 10 s window (Garmin doubles it);
   - total distance, 0.1 m units, from the odometer: sums treadmill counter deltas,

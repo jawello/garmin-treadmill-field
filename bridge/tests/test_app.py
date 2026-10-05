@@ -123,6 +123,31 @@ async def test_build_leaves_the_keystore_to_power_on(link, tmp_path):
     assert dev_a.keystore is None
 
 
+def test_foot_pod_speed_goes_out_once_a_second():
+    # The watch takes one measurement per 1000 ms connection event: faster ticks pile up
+    # in radio A's shared ACL buffers and starve the treadmill link.
+    assert Timings().tick_s == 1.0
+
+
+async def test_ticks_keep_their_rate_when_each_tick_takes_time(link, tmp_path):
+    # At ~1.03 s per tick the watch found nothing new every ~33 s and Auto Pause fired.
+    timings = Timings(poll_interval=0.05, write_gap=0.02, stale_after=0.5, backoff=(0.05,), grace_s=0.3, tick_s=0.1, flush_s=10.0)
+    _, c, task = await start_system(link, tmp_path, with_b=False, timings=timings)
+    try:
+        ticks = []
+
+        async def slow_tick():
+            ticks.append(asyncio.get_running_loop().time())
+            await asyncio.sleep(0.03)
+
+        c.bridge.tick = slow_tick
+        await asyncio.sleep(1.25)
+        span = ticks[-1] - ticks[1]
+        assert span / (len(ticks) - 2) < 0.105  # a sleep after the work would give 0.13
+    finally:
+        task.cancel()
+
+
 async def test_start_request_pushes_hold_speed_to_the_watch_at_once(link, tmp_path):
     slow_ticks = Timings(poll_interval=0.05, write_gap=0.02, stale_after=0.5, backoff=(0.05,), grace_s=0.3, tick_s=1.0, flush_s=0.2)
     tm, c, task = await start_system(link, tmp_path, hold=True, stop_belt=True, timings=slow_ticks)
