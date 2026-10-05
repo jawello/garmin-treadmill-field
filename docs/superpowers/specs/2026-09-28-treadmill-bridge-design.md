@@ -127,7 +127,10 @@ Key decisions:
     (total distance supported);
   - Battery `0x180F`: level 100 (no low-battery alerts);
   - Device Information `0x180A`: manufacturer "treadmill-bridge".
-- **Measurement, 1 Hz,** flags `0x02` (total distance present, walking):
+- **Measurement, 2 Hz on a fixed grid** (changed 2026-10-05 from 1 Hz with a sleep after
+  each tick: that ran at ~1.03 s, so every ~33 s a watch second got no measurement, the
+  watch recorded speed 0 and Auto Pause stopped the belt), flags `0x02` (total distance
+  present, walking):
   - speed = belt km/h ÷ 3.6 × 256 when belt state is 1 (running), else 0;
   - cadence = steps/min ÷ 2 over the last 10 s window (Garmin doubles it);
   - total distance, 0.1 m units, from the odometer: sums treadmill counter deltas,
