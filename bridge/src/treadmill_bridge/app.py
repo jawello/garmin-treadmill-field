@@ -18,7 +18,6 @@ from .footpod import FootPod
 from .hub import StatusHub
 from .odometer import Odometer
 from .owner import OwnerPresence
-from .schedule import FixedRate
 from .sessions import SessionRecorder
 from .storage import Store
 from .treadmill import TreadmillClient
@@ -35,9 +34,7 @@ class Timings:
     stale_after: float = 5.0
     backoff: tuple[float, ...] = (1.0, 2.0, 5.0, 10.0)
     grace_s: float = 30.0
-    # The watch samples the foot pod once a second; at 1 Hz any delay left a watch second
-    # without a measurement, recorded as speed 0, and Auto Pause stopped the belt.
-    tick_s: float = 0.5
+    tick_s: float = 1.0
     flush_s: float = 10.0
 
 
@@ -59,7 +56,6 @@ class Components:
     async def run_ble(self) -> None:
         async def ticker() -> None:
             last_flush = time.monotonic()
-            rate = FixedRate(self.timings.tick_s)
             await self._refresh_owners()
             while True:
                 await self.bridge.tick()
@@ -71,7 +67,7 @@ class Components:
                     except Exception:
                         log.exception("saving steps failed")
                     last_flush = time.monotonic()
-                await asyncio.sleep(rate.delay())
+                await asyncio.sleep(self.timings.tick_s)
 
         await asyncio.gather(self.treadmill.run(), ticker())
 
