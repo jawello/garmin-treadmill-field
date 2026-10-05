@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import struct
 
 from bumble.hci import OwnAddressType
@@ -140,5 +141,21 @@ async def test_start_request_pushes_hold_speed_to_the_watch_at_once(link, tmp_pa
         data = await asyncio.wait_for(rsc.get(), 0.15)  # well before the next 1 s tick
         _, speed, _, _ = struct.unpack("<BHBI", data)
         assert speed == round(1.0 / 3.6 * 256)
+    finally:
+        task.cancel()
+
+
+async def test_diagnostics_watch_radio_a_and_run_every_tick(link, tmp_path, caplog):
+    caplog.set_level(logging.INFO, logger="treadmill_bridge.diagnostics")
+    _, c, task = await start_system(link, tmp_path)
+    try:
+        checks = []
+        c.gaps.check = lambda: checks.append(1)
+        watch_dev = virtual_device(link, "watch")
+        await watch_dev.power_on()
+        await FakeWatch(watch_dev).connect(c.dev_a.random_address)
+        await asyncio.sleep(0.3)
+        assert checks
+        assert any(r.getMessage().startswith("radio A: peer connected") for r in caplog.records)
     finally:
         task.cancel()

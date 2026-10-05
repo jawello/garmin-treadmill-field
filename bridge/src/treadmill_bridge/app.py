@@ -14,6 +14,7 @@ from bumble.hci import OwnAddressType
 from .bridge import Bridge
 from .ciq_link import CiqLink
 from .config import Config, State
+from .diagnostics import StatusGapMonitor, acl_snapshot, log_connections
 from .footpod import FootPod
 from .hub import StatusHub
 from .odometer import Odometer
@@ -52,6 +53,7 @@ class Components:
     bridge: Bridge
     owner: OwnerPresence
     timings: Timings
+    gaps: StatusGapMonitor
 
     async def run_ble(self) -> None:
         async def ticker() -> None:
@@ -59,6 +61,7 @@ class Components:
             await self._refresh_owners()
             while True:
                 await self.bridge.tick()
+                self.gaps.check()
                 if time.monotonic() - last_flush >= self.timings.flush_s:
                     await self._refresh_owners()
                     try:
@@ -111,6 +114,10 @@ def build(
         recorder.record(status, steps, distance, time.time())
 
     hub.on_status(on_status)
+    log_connections(dev_a, "radio A")
+    if dev_b is not None:
+        log_connections(dev_b, "radio B")
+    gaps = StatusGapMonitor(hub, lambda: acl_snapshot(dev_a))
     hub.on_link(lambda up: None if up else odometer.stall())
     treadmill = TreadmillClient(
         dev_a,
@@ -139,7 +146,7 @@ def build(
         task.add_done_callback(pushes.discard)
 
     hub.on_start(push_foot_pod)
-    return Components(dev_a, dev_b, hub, odometer, store, recorder, treadmill, footpod, ciq, bridge, owner, timings)
+    return Components(dev_a, dev_b, hub, odometer, store, recorder, treadmill, footpod, ciq, bridge, owner, timings, gaps)
 
 
 def status_snapshot(c: Components) -> dict:
