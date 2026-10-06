@@ -85,3 +85,75 @@ class StatusGapMonitor:
         if age >= self._gap_s:
             self._open = True
             log.warning("no treadmill status for %.1f s, %s", age, self._snapshot())
+
+
+class AclRecorder:
+    """Per link: packets handed to the controller, completions, and how long each took.
+
+    Wraps the host's LE ACL queue (enqueue and the Number Of Completed Packets
+    handler) without changing what it does; logs one summary per window.
+    """
+
+    def __init__(self, device: Device, clock: Callable[[], float] = time.monotonic, window_s: float = 5.0) -> None:
+        self._device = device
+        self._clock = clock
+        self._window_s = window_s
+        self._queue = None
+        self._window_start = clock()
+        self._sent_at: dict[int, list[float]] = {}
+        self._sent: dict[int, int] = {}
+        self._latencies: dict[int, list[float]] = {}
+
+    def _install(self) -> None:
+        queue = getattr(self._device.host, "le_acl_packet_queue", None)
+        if queue is None:
+            return
+        enqueue, completed, flush = queue.enqueue, queue.on_packets_completed, queue.flush
+
+        def recorded_enqueue(packet, connection_handle):
+            self._sent_at.setdefault(connection_handle, []).append(self._clock())
+            self._sent[connection_handle] = self._sent.get(connection_handle, 0) + 1
+            return enqueue(packet, connection_handle)
+
+        def recorded_completed(packet_count, connection_handle):
+            now, pending = self._clock(), self._sent_at.get(connection_handle, [])
+            done = self._latencies.setdefault(connection_handle, [])
+            for _ in range(min(packet_count, len(pending))):
+                done.append(now - pending.pop(0))
+            return completed(packet_count, connection_handle)
+
+        def recorded_flush(connection_handle):
+            # A dropped link's packets never complete; its handle gets reused.
+            self._sent_at.pop(connection_handle, None)
+            return flush(connection_handle)
+
+        queue.enqueue, queue.on_packets_completed, queue.flush = recorded_enqueue, recorded_completed, recorded_flush
+        self._queue = queue
+
+    def _peer(self, handle: int) -> str:
+        connection = self._device.connections.get(handle)
+        return f" ({connection.peer_address})" if connection is not None else ""
+
+    def tick(self) -> None:
+        if self._queue is None:
+            self._install()
+            self._window_start = self._clock()
+            return
+        now = self._clock()
+        if now - self._window_start < self._window_s:
+            return
+        self._window_start = now
+        handles = sorted(set(self._sent) | {h for h, v in self._latencies.items() if v})
+        if not handles:
+            return
+        parts = []
+        for handle in handles:
+            latencies = sorted(self._latencies.get(handle, []))
+            part = f"handle {handle}{self._peer(handle)}: sent {self._sent.get(handle, 0)}, done {len(latencies)}"
+            if latencies:
+                part += (f", latency min {latencies[0]:.1f} med {latencies[len(latencies) // 2]:.1f}"
+                         f" max {latencies[-1]:.1f} s")
+            parts.append(part)
+        log.info("acl %g s: %s; %s", self._window_s, "; ".join(parts), acl_snapshot(self._device))
+        self._sent.clear()
+        self._latencies.clear()

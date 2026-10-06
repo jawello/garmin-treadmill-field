@@ -6,6 +6,7 @@ from bumble.hci import OwnAddressType
 
 from treadmill_bridge import protocol as p
 from treadmill_bridge.app import Timings, build, status_snapshot
+from treadmill_bridge.diagnostics import AclRecorder
 from treadmill_bridge.config import Config, State
 from treadmill_bridge.storage import Store
 from tests.fakes import FakeTreadmill, FakeWatch, virtual_device
@@ -157,5 +158,34 @@ async def test_diagnostics_watch_radio_a_and_run_every_tick(link, tmp_path, capl
         await asyncio.sleep(0.3)
         assert checks
         assert any(r.getMessage().startswith("radio A: peer connected") for r in caplog.records)
+    finally:
+        task.cancel()
+
+
+async def test_acl_recorder_runs_every_tick(link, tmp_path):
+    _, c, task = await start_system(link, tmp_path, with_b=False)
+    try:
+        ticks = []
+        c.acl.tick = lambda: ticks.append(1)
+        await asyncio.sleep(0.3)
+        assert ticks
+    finally:
+        task.cancel()
+
+
+async def test_acl_recorder_sees_foot_pod_notifications_on_the_real_queue(link, tmp_path, caplog):
+    caplog.set_level(logging.INFO, logger="treadmill_bridge.diagnostics")
+    _, c, task = await start_system(link, tmp_path)
+    try:
+        c.acl = AclRecorder(c.dev_a, window_s=0.5)
+        watch_dev = virtual_device(link, "watch")
+        await watch_dev.power_on()
+        watch = FakeWatch(watch_dev)
+        pod = await watch.connect(c.dev_a.random_address)
+        await pod.pair()
+        await watch.subscribe(pod, "1814", "2A53")
+        await asyncio.sleep(1.5)
+        lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("acl ")]
+        assert any(f"({watch_dev.public_address})" in line and "done" in line for line in lines)
     finally:
         task.cancel()
