@@ -19,7 +19,6 @@ from .footpod import FootPod
 from .hub import StatusHub
 from .odometer import Odometer
 from .owner import OwnerPresence
-from .schedule import FixedRate
 from .sessions import SessionRecorder
 from .storage import Store
 from .treadmill import TreadmillClient
@@ -36,9 +35,6 @@ class Timings:
     stale_after: float = 5.0
     backoff: tuple[float, ...] = (1.0, 2.0, 5.0, 10.0)
     grace_s: float = 30.0
-    # One foot pod measurement per second on a fixed grid: the watch takes one per 1000 ms
-    # connection event. A sleep after each tick ran at ~1.03 s, leaving the watch empty
-    # every ~33 s (Auto Pause); 2 Hz piled up in radio A's shared buffers instead.
     tick_s: float = 1.0
     flush_s: float = 10.0
 
@@ -62,7 +58,6 @@ class Components:
     async def run_ble(self) -> None:
         async def ticker() -> None:
             last_flush = time.monotonic()
-            rate = FixedRate(self.timings.tick_s)
             await self._refresh_owners()
             while True:
                 await self.bridge.tick()
@@ -75,7 +70,7 @@ class Components:
                     except Exception:
                         log.exception("saving steps failed")
                     last_flush = time.monotonic()
-                await asyncio.sleep(rate.delay())
+                await asyncio.sleep(self.timings.tick_s)
 
         await asyncio.gather(self.treadmill.run(), ticker())
 
