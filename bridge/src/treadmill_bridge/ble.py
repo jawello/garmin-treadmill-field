@@ -24,3 +24,14 @@ def enable_just_works(device: Device) -> None:
 
 def advertising_payload(entries: list[tuple[int, bytes]]) -> bytes:
     return bytes(AdvertisingData(entries))
+
+
+def link_backlog(connection: Connection) -> int:
+    """Packets for this link the controller has not confirmed yet, plus those still in the host queue."""
+    queue = getattr(connection.device.host, "le_acl_packet_queue", None)
+    if queue is None:
+        return 0
+    state = getattr(queue, "_connection_state", {}).get(connection.handle)
+    in_flight = state.in_flight if state is not None else 0
+    waiting = sum(1 for _packet, handle in getattr(queue, "_packets", ()) if handle == connection.handle)
+    return in_flight + waiting

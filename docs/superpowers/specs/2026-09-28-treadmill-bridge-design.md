@@ -127,7 +127,15 @@ Key decisions:
     (total distance supported);
   - Battery `0x180F`: level 100 (no low-battery alerts);
   - Device Information `0x180A`: manufacturer "treadmill-bridge".
-- **Measurement, 1 Hz,** flags `0x02` (total distance present, walking):
+- **Measurement, 1 Hz on a fixed grid,** flags `0x02` (total distance present, walking).
+  The watch sets the pod link to a 1000 ms interval and takes one measurement per
+  connection event (measured 2026-10-06). Two causes of the Auto Pause dropouts:
+  - the ticker slept 1 s after its work (~1.03 s), so every ~32 s the watch found
+    nothing new for one second — hence the fixed grid;
+  - with the treadmill on the same controller, the pod link missed 2–4 s of events
+    every ~33 s — hence `treadmill_on_usb_radio`, which leaves radio A to the pod.
+  A measurement is skipped while the watch link still has 3 unconfirmed
+  (`MAX_BACKLOG`), so a slow watch cannot grow the queue.
   - speed = belt km/h ÷ 3.6 × 256 when belt state is 1 (running), else 0;
   - cadence = steps/min ÷ 2 over the last 10 s window (Garmin doubles it);
   - total distance, 0.1 m units, from the odometer: sums treadmill counter deltas,

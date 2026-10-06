@@ -140,3 +140,40 @@ async def test_payload_logs_when_speed_drops_to_zero(link, caplog):
         pod.payload(now[0])  # still zero: reported once
     drops = [r.getMessage() for r in caplog.records if "speed 0" in r.getMessage()]
     assert drops == ["foot pod speed 0 after 1.25 m/s: no fresh status (last 4.5 s ago)"]
+
+
+async def _subscribed_pod(link, backlog):
+    pod_dev, watch_dev = virtual_device(link, "pod"), virtual_device(link, "watch")
+    hub, odo = StatusHub(), Odometer()
+    pod = FootPod(pod_dev, hub, odo, OwnAddressType.RANDOM, backlog=backlog)
+    pod.install()
+    await pod_dev.power_on()
+    await watch_dev.power_on()
+    hub.publish(p.parse_status(p.build_status(1, 45, 0, 0, 0)))
+    await pod.start()
+    watch = FakeWatch(watch_dev)
+    conn = await watch.connect(pod_dev.random_address)
+    await conn.pair()
+    return pod, await watch.subscribe(conn, "1814", "2A53")
+
+
+async def test_skips_a_measurement_while_the_watch_has_three_waiting(link):
+    # The watch still has older ones to take; queueing more only grows its backlog.
+    pod, rsc = await _subscribed_pod(link, backlog=lambda _connection: 3)
+    await pod.tick(0.0)
+    await asyncio.sleep(0.2)
+    assert rsc.empty()
+
+
+async def test_sends_while_the_watch_keeps_up(link):
+    pod, rsc = await _subscribed_pod(link, backlog=lambda _connection: 2)
+    await pod.tick(0.0)
+    assert await asyncio.wait_for(rsc.get(), 2)
+
+
+async def test_link_backlog_counts_packets_not_yet_confirmed(link):
+    from treadmill_bridge.ble import link_backlog
+
+    pod, rsc = await _subscribed_pod(link, backlog=None)
+    connection = next(iter(pod._device.connections.values()))
+    assert link_backlog(connection) == 0

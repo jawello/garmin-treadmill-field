@@ -12,7 +12,7 @@ from bumble.device import Device
 from bumble.gatt import Characteristic, Service
 from bumble.hci import OwnAddressType
 
-from .ble import advertising_payload, enable_just_works, peripheral_connections
+from .ble import advertising_payload, enable_just_works, link_backlog, peripheral_connections
 from .hub import StatusHub
 from .odometer import Odometer
 from .protocol import Status, is_countdown
@@ -33,6 +33,9 @@ FEATURE_TOTAL_DISTANCE = 0x0002
 HOLD_SPEED_MPS = 1.0 / 3.6
 HOLD_AFTER_START_S = 15.0  # countdown plus the slow ramp up to walking speed
 STATUS_FRESH_S = 3.0
+# The watch takes one measurement per 1000 ms connection event. With this many still
+# unconfirmed it has older ones to take, so a new one would only grow its backlog.
+MAX_BACKLOG = 3
 
 
 def rsc_measurement(speed_mps: float, cadence_strides: int, distance_m: float) -> bytes:
@@ -65,6 +68,7 @@ class FootPod:
         hold_speed_during_start: bool = False,
         clock: Callable[[], float] = time.monotonic,
         name: str = "Treadmill Pod",
+        backlog: Callable[[object], int] | None = link_backlog,
     ) -> None:
         self._device = device
         self._hub = hub
@@ -73,6 +77,7 @@ class FootPod:
         self._hold = hold_speed_during_start
         self._clock = clock
         self._name = name
+        self._backlog = backlog or link_backlog
         self.advertising = False
         self._sent_speed = 0.0
         self.measurement = Characteristic(
@@ -171,4 +176,10 @@ class FootPod:
         return f"no fresh status (last {self._clock() - self._hub.latest_at:.1f} s ago)"
 
     async def tick(self, now: float) -> None:
-        await self._device.notify_subscribers(self.measurement, self.payload(now))
+        payload = self.payload(now)
+        for connection in peripheral_connections(self._device):
+            waiting = self._backlog(connection)
+            if waiting >= MAX_BACKLOG:
+                log.info("foot pod skipped a measurement: %d still waiting for %s", waiting, connection.peer_address)
+                continue
+            await self._device.notify_subscriber(connection, self.measurement, payload)
