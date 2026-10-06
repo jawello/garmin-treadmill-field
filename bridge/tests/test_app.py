@@ -2,7 +2,7 @@ import asyncio
 import logging
 import struct
 
-from bumble.hci import OwnAddressType
+from bumble.hci import OwnAddressType, Role
 
 from treadmill_bridge import protocol as p
 from treadmill_bridge.app import Timings, build, status_snapshot
@@ -14,14 +14,15 @@ from tests.fakes import FakeTreadmill, FakeWatch, virtual_device
 FAST = Timings(poll_interval=0.05, write_gap=0.02, stale_after=0.5, backoff=(0.05,), grace_s=0.3, tick_s=0.05, flush_s=0.2)
 
 
-async def start_system(link, tmp_path, with_b=True, hold=False, stop_belt=False, timings=FAST):
+async def start_system(link, tmp_path, with_b=True, hold=False, stop_belt=False, timings=FAST, usb_treadmill=False):
     tm = FakeTreadmill(virtual_device(link, "treadmill"))
     tm.install()
     tm.running = not stop_belt
     await tm.start()
     dev_a = virtual_device(link, "radio-a")
     dev_b = virtual_device(link, "radio-b") if with_b else None
-    config = Config(api_token="t", treadmill_address=str(tm.device.random_address), hold_speed_during_start=hold)
+    config = Config(api_token="t", treadmill_address=str(tm.device.random_address), hold_speed_during_start=hold,
+                    treadmill_on_usb_radio=usb_treadmill)
     components = build(
         dev_a, dev_b, config, Store(str(tmp_path / "e.db")), State(str(tmp_path / "s.json")),
         OwnAddressType.RANDOM, time_synced=lambda: True, timings=timings,
@@ -187,5 +188,42 @@ async def test_acl_recorder_sees_foot_pod_notifications_on_the_real_queue(link, 
         await asyncio.sleep(1.5)
         lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("acl ")]
         assert any(f"({watch_dev.public_address})" in line and "done" in line for line in lines)
+    finally:
+        task.cancel()
+
+
+def central_links(device):
+    return [c for c in device.connections.values() if c.role == Role.CENTRAL]
+
+
+async def test_treadmill_link_can_live_on_the_usb_radio(link, tmp_path):
+    # Radio A then carries only the foot pod: the experiment for the ~33 s pod dropouts.
+    tm, c, task = await start_system(link, tmp_path, usb_treadmill=True)
+    try:
+        assert c.hub.link_up
+        assert len(central_links(c.dev_b)) == 1 and central_links(c.dev_a) == []
+        watch_dev = virtual_device(link, "watch")
+        await watch_dev.power_on()
+        watch = FakeWatch(watch_dev)
+        pod_conn = await watch.connect(c.dev_a.random_address)
+        await pod_conn.pair()
+        rsc = await watch.subscribe(pod_conn, "1814", "2A53")
+        _, speed, _, _ = struct.unpack("<BHBI", await asyncio.wait_for(rsc.get(), 2))
+        assert speed == 320
+        field_conn = await watch.connect(c.dev_b.random_address)
+        await watch.write(field_conn, p.SERVICE_UUID, p.WRITE_UUID, p.STOP)
+        for _ in range(100):
+            if p.STOP in tm.writes:
+                break
+            await asyncio.sleep(0.02)
+        assert p.STOP in tm.writes
+    finally:
+        task.cancel()
+
+
+async def test_usb_treadmill_falls_back_to_radio_a_without_a_usb_radio(link, tmp_path):
+    _, c, task = await start_system(link, tmp_path, with_b=False, usb_treadmill=True)
+    try:
+        assert c.hub.link_up and len(central_links(c.dev_a)) == 1
     finally:
         task.cancel()

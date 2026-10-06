@@ -15,6 +15,9 @@ class Config:
     api_host: str = "0.0.0.0"
     api_port: int = 8080
     hold_speed_during_start: bool = False
+    # Treadmill link on the USB radio (B), leaving radio A to the foot pod alone. Falls
+    # back to radio A without a USB radio.
+    treadmill_on_usb_radio: bool = False
     log_level: str = "INFO"
     state_dir: str = "/var/lib/treadmill-bridge"
 

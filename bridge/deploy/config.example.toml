@@ -4,3 +4,4 @@ api_token = "CHANGE_ME"
 api_port = 8080
 hold_speed_during_start = false
 log_level = "INFO"
+# treadmill_on_usb_radio = true   # treadmill link on the USB radio, foot pod alone on radio A

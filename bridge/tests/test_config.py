@@ -27,3 +27,11 @@ def test_state_persists_address(tmp_path):
     assert state.treadmill_address is None
     state.save_address("57:4C:4D:2F:0C:93/P")
     assert State(str(tmp_path / "state.json")).treadmill_address == "57:4C:4D:2F:0C:93/P"
+
+
+def test_treadmill_stays_on_radio_a_unless_asked(tmp_path):
+    path = tmp_path / "c.toml"
+    path.write_text('api_token = "abc"\n')
+    assert load_config(str(path)).treadmill_on_usb_radio is False
+    path.write_text('api_token = "abc"\ntreadmill_on_usb_radio = true\n')
+    assert load_config(str(path)).treadmill_on_usb_radio is True

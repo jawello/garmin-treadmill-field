@@ -119,10 +119,12 @@ def build(
     log_connections(dev_a, "radio A")
     if dev_b is not None:
         log_connections(dev_b, "radio B")
-    gaps = StatusGapMonitor(hub, lambda: acl_snapshot(dev_a))
+    treadmill_radio = dev_b if config.treadmill_on_usb_radio and dev_b is not None else dev_a
+    log.info("treadmill link on radio %s", "B" if treadmill_radio is dev_b else "A")
+    gaps = StatusGapMonitor(hub, lambda: acl_snapshot(treadmill_radio))
     hub.on_link(lambda up: None if up else odometer.stall())
     treadmill = TreadmillClient(
-        dev_a,
+        treadmill_radio,
         hub,
         config.treadmill_address or state.treadmill_address,
         own_address_type,
