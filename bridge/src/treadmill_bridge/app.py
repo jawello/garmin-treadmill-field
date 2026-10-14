@@ -139,7 +139,10 @@ def build(
         stale_after=timings.stale_after,
         backoff=timings.backoff,
     )
-    footpod = FootPod(dev_a, hub, odometer, own_address_type, config.hold_speed_during_start)
+    footpod = FootPod(
+        dev_a, hub, odometer, own_address_type, config.hold_speed_during_start,
+        max_interval_ms=config.foot_pod_max_interval_ms or None,
+    )
     footpod.install()
     ciq = None
     if dev_b is not None:

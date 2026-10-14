@@ -35,3 +35,11 @@ def test_treadmill_stays_on_radio_a_unless_asked(tmp_path):
     assert load_config(str(path)).treadmill_on_usb_radio is False
     path.write_text('api_token = "abc"\ntreadmill_on_usb_radio = true\n')
     assert load_config(str(path)).treadmill_on_usb_radio is True
+
+
+def test_foot_pod_interval_is_the_watch_choice_unless_set(tmp_path):
+    path = tmp_path / "c.toml"
+    path.write_text('api_token = "abc"\n')
+    assert load_config(str(path)).foot_pod_max_interval_ms == 0
+    path.write_text('api_token = "abc"\nfoot_pod_max_interval_ms = 250\n')
+    assert load_config(str(path)).foot_pod_max_interval_ms == 250

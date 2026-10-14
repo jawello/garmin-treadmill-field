@@ -136,6 +136,11 @@ Key decisions:
     every ~33 s — hence `treadmill_on_usb_radio`, which leaves radio A to the pod.
   A measurement is skipped while the watch link still has 3 unconfirmed
   (`MAX_BACKLOG`), so a slow watch cannot grow the queue.
+  The ~32 s stalls stayed with the treadmill on radio B (2026-10-14): 1–2 measurements
+  skipped every ~32 s, sometimes 3–5 with 5–7 s latency, and those paused the
+  activity. At 1000 ms the watch drains the backlog at most one per second, so
+  `foot_pod_max_interval_ms` asks it (L2CAP connection parameter update) for a faster
+  link each time it sets a slower one, at most 3 times per connection.
   - speed = belt km/h ÷ 3.6 × 256 when belt state is 1 (running), else 0;
   - cadence = steps/min ÷ 2 over the last 10 s window (Garmin doubles it);
   - total distance, 0.1 m units, from the odometer: sums treadmill counter deltas,

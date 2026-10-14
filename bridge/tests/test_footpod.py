@@ -177,3 +177,31 @@ async def test_link_backlog_counts_packets_not_yet_confirmed(link):
     pod, rsc = await _subscribed_pod(link, backlog=None)
     connection = next(iter(pod._device.connections.values()))
     assert link_backlog(connection) == 0
+
+
+async def _watch_on_slow_pod_link(link, max_interval_ms):
+    pod_dev, watch_dev = virtual_device(link, "pod"), virtual_device(link, "watch")
+    pod = FootPod(pod_dev, StatusHub(), Odometer(), OwnAddressType.RANDOM, max_interval_ms=max_interval_ms)
+    pod.install()
+    await pod_dev.power_on()
+    await watch_dev.power_on()
+    await pod.start()
+    conn = await FakeWatch(watch_dev).connect(pod_dev.random_address)
+    await asyncio.sleep(0.1)
+    # Like the Instinct 3: a few seconds in, the watch slows the pod link to 1000 ms.
+    await conn.update_parameters(1000.0, 1000.0, 0, 4000.0)
+    await asyncio.sleep(0.3)
+    return next(iter(pod_dev.connections.values()))
+
+
+async def test_asks_the_watch_for_a_faster_pod_link(link):
+    # At 1000 ms one missed event leaves the watch a second behind for good; a faster
+    # link drains what queued up during the watch's ~32 s stalls.
+    pod_link = await _watch_on_slow_pod_link(link, max_interval_ms=250.0)
+    assert pod_link.parameters.connection_interval <= 250.0
+    assert pod_link.parameters.supervision_timeout == 4000.0
+
+
+async def test_keeps_the_watch_interval_by_default(link):
+    pod_link = await _watch_on_slow_pod_link(link, max_interval_ms=None)
+    assert pod_link.parameters.connection_interval == 1000.0

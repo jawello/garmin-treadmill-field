@@ -18,6 +18,9 @@ class Config:
     # Treadmill link on the USB radio (B), leaving radio A to the foot pod alone. Falls
     # back to radio A without a USB radio.
     treadmill_on_usb_radio: bool = False
+    # Ask the watch for a foot pod link no slower than this (ms); 0 keeps the watch's
+    # own choice (1000 ms on the Instinct 3).
+    foot_pod_max_interval_ms: float = 0
     log_level: str = "INFO"
     state_dir: str = "/var/lib/treadmill-bridge"
 

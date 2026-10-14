@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import struct
 import time
 from collections.abc import Callable
 
 from bumble.core import AdvertisingData
-from bumble.device import Device
+from bumble.device import Connection, Device
 from bumble.gatt import Characteristic, Service
-from bumble.hci import OwnAddressType
+from bumble.hci import OwnAddressType, Role
 
 from .ble import advertising_payload, enable_just_works, link_backlog, peripheral_connections
 from .hub import StatusHub
@@ -36,6 +37,9 @@ STATUS_FRESH_S = 3.0
 # The watch takes one measurement per 1000 ms connection event. With this many still
 # unconfirmed it has older ones to take, so a new one would only grow its backlog.
 MAX_BACKLOG = 3
+# A watch that keeps slowing the link again after we asked gets no more requests.
+MAX_INTERVAL_REQUESTS = 3
+INTERVAL_REQUEST_TIMEOUT_S = 10.0
 
 
 def rsc_measurement(speed_mps: float, cadence_strides: int, distance_m: float) -> bytes:
@@ -69,6 +73,7 @@ class FootPod:
         clock: Callable[[], float] = time.monotonic,
         name: str = "Treadmill Pod",
         backlog: Callable[[object], int] | None = link_backlog,
+        max_interval_ms: float | None = None,
     ) -> None:
         self._device = device
         self._hub = hub
@@ -78,6 +83,8 @@ class FootPod:
         self._clock = clock
         self._name = name
         self._backlog = backlog or link_backlog
+        self._max_interval_ms = max_interval_ms
+        self._requests: set[asyncio.Task] = set()
         self.advertising = False
         self._sent_speed = 0.0
         self.measurement = Characteristic(
@@ -124,6 +131,51 @@ class FootPod:
             ]
         )
         enable_just_works(self._device)
+        if self._max_interval_ms:
+            self._device.on("connection", self._keep_link_fast)
+
+    def _keep_link_fast(self, connection: Connection) -> None:
+        # The watch slows the pod link to 1000 ms and takes one measurement per event, so
+        # after its periodic stall the backlog drains at most one per second. Ask for a
+        # faster link each time the watch sets a slower one.
+        if connection.role != Role.PERIPHERAL:
+            return
+        asked = 0
+
+        def on_update() -> None:
+            nonlocal asked
+            if connection.parameters.connection_interval <= self._max_interval_ms:
+                return
+            if asked >= MAX_INTERVAL_REQUESTS:
+                return
+            asked += 1
+            task = asyncio.ensure_future(self._ask_interval(connection))
+            self._requests.add(task)
+            task.add_done_callback(self._requests.discard)
+
+        connection.on("connection_parameters_update", on_update)
+
+    async def _ask_interval(self, connection: Connection) -> None:
+        current = connection.parameters
+        low, high = self._max_interval_ms / 2, self._max_interval_ms
+        log.info(
+            "foot pod asking %s for a %g-%g ms interval (has %g ms)",
+            connection.peer_address, low, high, current.connection_interval,
+        )
+        try:
+            await asyncio.wait_for(
+                connection.update_parameters(
+                    low, high, 0, current.supervision_timeout, use_l2cap=True
+                ),
+                INTERVAL_REQUEST_TIMEOUT_S,
+            )
+        except Exception as error:  # rejected, timed out or the watch left
+            log.warning("foot pod interval request to %s failed: %r", connection.peer_address, error)
+            # Bumble keeps one pending L2CAP request per device; an unanswered one would
+            # refuse every later request.
+            manager = self._device.l2cap_channel_manager
+            if getattr(manager, "connection_parameters_update_response", None) is not None:
+                manager.connection_parameters_update_response = None
 
     async def start(self) -> None:
         # Called every tick while the treadmill link is up. Advertise only when no watch is
