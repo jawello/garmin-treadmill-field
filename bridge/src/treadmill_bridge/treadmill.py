@@ -96,9 +96,16 @@ class TreadmillClient:
 
     async def _session(self) -> None:
         address = await self._resolve_address()
-        connection = await self._device.connect(
-            address, own_address_type=self._own_address_type, timeout=self._connect_timeout
-        )
+        # A connect that times out in the same instant the link comes up raises (the
+        # cancel is refused) yet leaves a live, untracked link. The treadmill does not
+        # advertise while connected, so a new connect could never succeed: adopt it.
+        connection = self._device.find_connection_by_bd_addr(address)
+        if connection is not None:
+            log.warning("adopting untracked treadmill link %s", format_address(address))
+        else:
+            connection = await self._device.connect(
+                address, own_address_type=self._own_address_type, timeout=self._connect_timeout
+            )
         lost = asyncio.Event()
         connection.on("disconnection", lambda *_: lost.set())
         log.info("treadmill connected %s", format_address(address))

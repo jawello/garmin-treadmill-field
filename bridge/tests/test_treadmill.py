@@ -91,6 +91,27 @@ async def test_reconnects_after_drop(link):
         task.cancel()
 
 
+async def test_adopts_connection_left_by_a_timed_out_connect(link):
+    # 2026-11-24: the treadmill connected in the same instant the connect timeout fired;
+    # the cancel failed (COMMAND_DISALLOWED), connect() raised and the live link was left
+    # untracked. The treadmill stops advertising while connected, so every later connect
+    # timed out and the watch had nothing to pair with until the treadmill dropped it.
+    tm = FakeTreadmill(virtual_device(link, "treadmill"))
+    tm.install()
+    await tm.start()
+    radio = virtual_device(link, "bridge-a")
+    await radio.power_on()
+    orphan = await radio.connect(tm.device.random_address, own_address_type=OwnAddressType.RANDOM)
+    hub = StatusHub()
+    client = TreadmillClient(radio, hub, str(tm.device.random_address), OwnAddressType.RANDOM, **FAST)
+    task = asyncio.create_task(client.run())
+    try:
+        await wait_for(lambda: hub.link_up)
+        assert orphan.handle in radio.connections
+    finally:
+        task.cancel()
+
+
 async def test_stale_start_is_never_sent_after_reconnect(link):
     # The field can queue START while the treadmill link is down (watch resumed during the
     # 30 s grace); that START must not start the belt minutes later when the link returns.
